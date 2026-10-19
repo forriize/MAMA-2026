@@ -2021,9 +2021,9 @@ async function downloadCertificate() {
     ctx.imageSmoothingQuality="high";
     
     ctx.fillStyle="#dff7f4";ctx.fillRect(0,0,logicalWidth,logicalHeight);
-    ctx.fillStyle="#ef3340";ctx.beginPath();ctx.roundRect(24,24,1152,canvas.height-48,30);ctx.fill();
-    ctx.fillStyle="#ffdf4d";ctx.beginPath();ctx.roundRect(42,42,1116,canvas.height-84,24);ctx.fill();
-    ctx.fillStyle="#fffdf4";ctx.beginPath();ctx.roundRect(58,58,1084,canvas.height-116,20);ctx.fill();
+    ctx.fillStyle="#ef3340";ctx.beginPath();ctx.roundRect(24,24,1152,logicalHeight-48,30);ctx.fill();
+    ctx.fillStyle="#ffdf4d";ctx.beginPath();ctx.roundRect(42,42,1116,logicalHeight-84,24);ctx.fill();
+    ctx.fillStyle="#fffdf4";ctx.beginPath();ctx.roundRect(58,58,1084,logicalHeight-116,20);ctx.fill();
     ctx.textAlign="center";ctx.fillStyle="#e63946";ctx.font="900 28px system-ui";ctx.fillText("★ WE VOTE RIIZE · CARD COLLECTION ★",600,105);
     ctx.fillStyle="#164e9a";ctx.font="900 44px system-ui";ctx.fillText("2026 MAMA FAN’S CHOICE",600,160);
     const [sy,sm,sd]=cfg.start.split("-"); const [ey,em,ed]=cfg.end.split("-");
