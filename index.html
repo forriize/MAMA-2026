@@ -1407,17 +1407,13 @@ footer,
     </div>
     <div class="calendar" id="stampGrid"></div>
     <div class="game-bar" style="margin-top:16px"><span class="hint">เช็กอินสำเร็จ +1 LV. รับการ์ด 1 ใบ · LV.22 รับการ์ดครบทั้งหมด</span><span class="level-chip" id="levelChip">LV. 0</span></div>
-    <h3 style="color:#8969df;margin-top:24px">CARD COLLECTION <span class="hint" style="font-size:12px">· PERIOD 01: C + R / PERIOD 02: UNOWNED + SR</span></h3>
+    <h3 style="color:#8969df;margin-top:24px">CARD COLLECTION · PERIOD 01 <span class="hint" style="font-size:12px">· C + R</span></h3>
     <div class="cards-grid" id="myCards"><div class="empty">กรอกแอคแล้วกดดูคอลเลกชันเพื่อดูการ์ดทั้ง 24 แบบ</div></div>
-    <h3 style="color:#8969df;margin-top:24px">PERIOD 02 · SR + UNOWNED CARDS · SWITCH IN EVENT_SETTINGS</h3>
+    <h3 style="color:#8969df;margin-top:24px">CARD COLLECTION · PERIOD 02 <span class="hint" style="font-size:12px">· SR + UNOWNED</span></h3>
     <div class="cards-grid" id="lockedCards"></div>
-    <div class="actions">
-     <button class="btn primary" id="downloadBtn">
-      ดาวน์โหลด Card collection
-     </button>
-     <button class="btn secondary" id="clearInputBtn">
-      ล้างช่องอัปโหลด
-     </button>
+    <div class="actions" style="flex-wrap:wrap">
+     <button class="btn primary" id="downloadBtn" type="button">ดาวน์โหลด Card Collection</button>
+     <button class="btn secondary" id="clearInputBtn" type="button">ล้างช่องอัปโหลด</button>
     </div>
    </section>
    <section class="panel">
@@ -1651,7 +1647,7 @@ async function loadCompleteAccounts() {
  $("completeHint").textContent=total?`Player ที่เลเวลสูงสุดใน Period ${EVENT_SETTINGS.activePeriod} (${eventDateLabel(cfg.start)}–${eventDateLabel(last)})`:`รายชื่อผู้สะสมครบจะเริ่มแสดงเมื่อถึง ${eventDateLabel(cfg.start)}`;
  if(!total){paintCompleteAccounts([],total);return}
  if(!DB_CONFIGURED){const local=JSON.parse(localStorage.getItem("we_vote_riize_stamps")||"{}");const complete=Object.entries(local).filter(([_,dates])=>eligible.every(date=>new Set(dates).has(date))).map(([account])=>account);paintCompleteAccounts(complete,total);return}
- try{const rows=await dbRequest("stamp_records?select=account,stamp_date&order=account.asc");const map={};rows.forEach(r=>{map[r.account]=map[r.account]||new Set();map[r.account].add(r.stamp_date)});const complete=Object.entries(map).filter(([_,dates])=>eligible.every(date=>dates.has(date))).map(([account])=>account);paintCompleteAccounts(complete,total)}catch(e){box.innerHTML='<div class="empty">โหลดรายชื่อไม่สำเร็จ กรุณาตรวจการตั้งค่าฐานข้อมูล</div>';$("completeCount").textContent="— COMPLETE"}
+ try{const rows=await dbRequest("stamp_records?select=account,stamp_date&order=account.asc");const map={};rows.forEach(r=>{map[r.account]=map[r.account]||new Set();map[r.account].add(r.stamp_date)});const complete=Object.entries(map).filter(([_,dates])=>eligible.every(date=>dates.has(date))).map(([account])=>account);paintCompleteAccounts(complete,total)}catch(e){box.innerHTML='<div class="empty">โหลดรายชื่อไม่สำเร็จ</div>';$("completeCount").textContent="— COMPLETE"}
 }
 function paintCompleteAccounts(accounts, total = currentEligibleDays().length) {
   $("completeCount").textContent=`${accounts.length} COMPLETE`;
@@ -1886,80 +1882,85 @@ async function checkTargetPhotoFast(uploadedImage) {
   return false;
 }
 
-function showCollectionImage(blob, fileName) {
-  const url = URL.createObjectURL(blob);
-  let modal = document.getElementById('collectionImageModal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'collectionImageModal';
-    modal.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#101827f2;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px;overflow:auto;box-sizing:border-box;';
-    modal.innerHTML = '<div style="width:100%;max-width:680px;display:flex;justify-content:space-between;align-items:center;gap:12px;color:white;margin:8px 0 12px;font:700 16px system-ui"><span>Card Collection</span><button type="button" id="closeCollectionImage" style="border:0;border-radius:10px;padding:10px 14px;font-weight:800;background:#fff;color:#17324d">ปิด ✕</button></div><p id="collectionSaveHint" style="max-width:680px;color:#fff7d6;font:600 14px/1.5 system-ui;text-align:center;margin:0 0 12px">แตะค้างที่รูป แล้วเลือก Save to Photos / บันทึกไปยังรูปภาพ</p><img id="collectionPreviewImage" alt="Card collection" style="display:block;width:100%;max-width:680px;height:auto;border-radius:12px;background:white;box-shadow:0 8px 28px #0006" />';
-    document.body.appendChild(modal);
-    modal.querySelector('#closeCollectionImage').addEventListener('click', () => { modal.style.display='none'; const old=modal.dataset.objectUrl; if(old) URL.revokeObjectURL(old); });
-  }
-  const img=modal.querySelector('#collectionPreviewImage');
-  const old=modal.dataset.objectUrl; if(old) URL.revokeObjectURL(old);
-  modal.dataset.objectUrl=url;
-  img.src=url;
-  modal.style.display='flex';
-}
-
 async function downloadCertificate() {
-  if (!currentAccount) {
-    showStatus("accountStatus", "กรุณากรอกแอคแล้วกดดูคอลเลกชันก่อนดาวน์โหลด", "err");
-    return;
+  // Open a tab immediately in the user click gesture for Safari/iOS fallback.
+  // Desktop browsers still receive a normal PNG download.
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  let iosTab = null;
+  if (isIOS) {
+    try { iosTab = window.open("about:blank", "_blank"); } catch (_) {}
   }
   try {
+    if (!currentAccount) throw new Error("กรุณากรอกแอคแล้วกดดูคอลเลกชันก่อนดาวน์โหลด");
+    const periodNo = Number(EVENT_SETTINGS.activePeriod);
+    const cfg = activePeriodConfig();
+    if (!cfg) throw new Error("ไม่พบวันที่ใน Event Settings");
+    showStatus("accountStatus", "กำลังสร้าง Card Collection…", "info");
     const rec = await accountRecordFor(currentAccount);
     const earned = new Set(rec.stamps || []);
     const records = await ownedCardRecords(currentAccount);
     const cardById = new Map(CARD_SET.map(c => [c.id, c]));
-    const cardRows = records.map(r => ({...r, card:cardById.get(r.card_id)})).filter(r => r.card && r.card.rank !== "SP");
+    const cardRows = records
+      .filter(r => Number(String(r.period || "").replace(/\D/g, "")) === periodNo)
+      .map(r => ({...r, card:cardById.get(r.card_id)}))
+      .filter(r => r.card && r.card.rank !== "SP");
+
     const loaded = {};
     await Promise.all(cardRows.map(async r => {
       try {
         const img = new Image();
-        await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=r.card.file;if(img.complete&&img.naturalWidth)resolve()});
+        img.crossOrigin = "anonymous";
+        await new Promise((resolve,reject)=>{
+          img.onload=resolve;
+          img.onerror=()=>reject(new Error("โหลดรูปการ์ดไม่สำเร็จ: "+r.card.file));
+          img.src = new URL(r.card.file, document.baseURI).href;
+          if (img.complete && img.naturalWidth) resolve();
+        });
         loaded[r.card.id]=img;
       } catch(e) { console.warn("โหลดรูปการ์ดไม่สำเร็จ:",r.card.file,e); }
     }));
 
-    // Put each collected card into the date slot matching its creation date (KST).
+    // Use the dates defined in EVENT_SETTINGS for the currently active period.
     const allDates = [];
-    Object.entries(EVENT_SETTINGS.periods).forEach(([periodNo,cfg]) => {
-      for(let t=Date.parse(cfg.start+'T00:00:00Z');t<=Date.parse(cfg.end+'T00:00:00Z');t+=86400000){
-        allDates.push({date:new Date(t).toISOString().slice(0,10),period:Number(periodNo)});
-      }
-    });
+    for(let t=Date.parse(cfg.start+'T00:00:00Z'); t<=Date.parse(cfg.end+'T00:00:00Z'); t+=86400000){
+      allDates.push({date:new Date(t).toISOString().slice(0,10),cards:[]});
+    }
     const byDate = new Map();
     cardRows.forEach(r=>{
       if(!r.created_at) return;
       const date=kstDate(new Date(r.created_at));
+      if(date < cfg.start || date > cfg.end) return;
       if(!byDate.has(date)) byDate.set(date,[]);
       byDate.get(date).push(r);
     });
-    allDates.forEach(d=>{const rows=byDate.get(d.date)||[]; d.cards=rows;});
-    const datedRows=cardRows.filter(r=>!r.created_at || !allDates.some(d=>d.date===kstDate(new Date(r.created_at))));
+    allDates.forEach(d=>{d.cards=byDate.get(d.date)||[];});
+    const datedRows=cardRows.filter(r=>!r.created_at || kstDate(new Date(r.created_at))<cfg.start || kstDate(new Date(r.created_at))>cfg.end);
 
     const cols=3, tileW=344, tileH=222, gapX=24, gapY=18, rows=Math.ceil(allDates.length/cols);
-    const canvas=document.createElement("canvas"); canvas.width=1200; canvas.height=370+rows*(tileH+gapY)+100;
-    const ctx=canvas.getContext("2d"); if(!ctx) throw new Error("ไม่สามารถสร้าง Canvas ได้");
+    const canvas=document.createElement("canvas");
+    canvas.width=1200; canvas.height=370+rows*(tileH+gapY)+100;
+    const ctx=canvas.getContext("2d");
+    if(!ctx) throw new Error("เบราว์เซอร์ไม่รองรับการสร้างรูป กรุณาลองใช้ Safari หรือ Chrome เวอร์ชันล่าสุด");
     const bg=ctx.createLinearGradient(0,0,1200,canvas.height); bg.addColorStop(0,"#fff7d6");bg.addColorStop(.5,"#d9f1ff");bg.addColorStop(1,"#e4ffd9");ctx.fillStyle=bg;ctx.fillRect(0,0,1200,canvas.height);
     ctx.fillStyle="#e63946";ctx.beginPath();ctx.roundRect(24,24,1152,canvas.height-48,34);ctx.fill();
     ctx.fillStyle="#ffdf4d";ctx.beginPath();ctx.roundRect(42,42,1116,canvas.height-84,26);ctx.fill();
     ctx.fillStyle="#fffdf4";ctx.beginPath();ctx.roundRect(58,58,1084,canvas.height-116,20);ctx.fill();
-    ctx.textAlign="center";ctx.fillStyle="#e63946";ctx.font="900 28px system-ui";ctx.fillText("★ WE VOTE RIIZE · DAILY CARD COLLECTION ★",600,105);
+    ctx.textAlign="center";ctx.fillStyle="#e63946";ctx.font="900 28px system-ui";ctx.fillText("★ WE VOTE RIIZE · CARD COLLECTION ★",600,105);
     ctx.fillStyle="#164e9a";ctx.font="900 44px system-ui";ctx.fillText("2026 MAMA FAN’S CHOICE",600,160);
+    const [sy,sm,sd]=cfg.start.split("-"); const [ey,em,ed]=cfg.end.split("-");
+    const dateRange=`${sd}/${sm}/${sy} – ${ed}/${em}/${ey}`;
     ctx.fillStyle="#fff1a8";ctx.beginPath();ctx.roundRect(250,180,700,58,18);ctx.fill();ctx.strokeStyle="#164e9a";ctx.lineWidth=4;ctx.stroke();
-    const accountName="@"+currentAccount;let fs=34;ctx.font=`900 ${fs}px system-ui`;while(ctx.measureText(accountName).width>640&&fs>20){fs-=2;ctx.font=`900 ${fs}px system-ui`};ctx.fillStyle="#164e9a";ctx.fillText(accountName,600,219);
-    ctx.fillStyle="#333";ctx.font="bold 20px system-ui";ctx.fillText(`LV. ${earned.size}/${DAYS.length}  ·  ${cardRows.length} CARDS COLLECTED`,600,274);
-    const startX=(1200-(cols*tileW+(cols-1)*gapX))/2, startY=310;
+    ctx.fillStyle="#164e9a";ctx.font="900 26px system-ui";ctx.fillText(dateRange,600,218);
+    const accountName="@"+currentAccount;let fs=34;ctx.font=`900 ${fs}px system-ui`;while(ctx.measureText(accountName).width>640&&fs>20){fs-=2;ctx.font=`900 ${fs}px system-ui`};ctx.fillStyle="#164e9a";ctx.fillText(accountName,600,274);
+    ctx.fillStyle="#333";ctx.font="bold 20px system-ui";ctx.fillText(`LV. ${earned.size}/${DAYS.length} · ${cardRows.length} CARDS COLLECTED`,600,310);
+    const startX=(1200-(cols*tileW+(cols-1)*gapX))/2, startY=350;
     allDates.forEach((slot,i)=>{
       const col=i%cols,row=Math.floor(i/cols),x=startX+col*(tileW+gapX),y=startY+row*(tileH+gapY);
-      ctx.fillStyle=slot.period===1?"#164e9a":"#7c3aed";ctx.beginPath();ctx.roundRect(x,y,tileW,tileH,13);ctx.fill();
+      ctx.fillStyle="#164e9a";ctx.beginPath();ctx.roundRect(x,y,tileW,tileH,13);ctx.fill();
       ctx.fillStyle="#fffdf4";ctx.beginPath();ctx.roundRect(x+5,y+5,tileW-10,tileH-10,10);ctx.fill();
       const [yy,mm,dd]=slot.date.split('-');
-      ctx.textAlign="left";ctx.fillStyle=slot.period===1?"#164e9a":"#7c3aed";ctx.font="900 19px system-ui";ctx.fillText(`${dd}/${mm}/${yy} · PERIOD ${String(slot.period).padStart(2,'0')}`,x+14,y+31);
+      ctx.textAlign="left";ctx.fillStyle="#164e9a";ctx.font="900 19px system-ui";ctx.fillText(`${dd}/${mm}/${yy}`,x+14,y+31);
       const dayCards=slot.cards||[];
       if(dayCards.length){
         const maxCards=Math.min(dayCards.length,2), cardW=maxCards===1?112:90, cardH=135, startCardX=x+(tileW-(maxCards*cardW+(maxCards-1)*12))/2;
@@ -1973,27 +1974,34 @@ async function downloadCertificate() {
       } else {
         ctx.textAlign="center";ctx.fillStyle="#cbd5e1";ctx.beginPath();ctx.roundRect(x+105,y+58,134,112,10);ctx.fill();
         ctx.fillStyle="#64748b";ctx.font="900 35px system-ui";ctx.fillText("＋",x+tileW/2,y+111);
-        ctx.font="bold 13px system-ui";ctx.fillText("STAMP YOUR CARD HERE",x+tileW/2,y+145);
+        ctx.font="bold 13px system-ui";ctx.fillText("NOT FOUND",x+tileW/2,y+145);
         ctx.fillStyle="#94a3b8";ctx.font="bold 12px system-ui";ctx.fillText("NO CARD YET",x+tileW/2,y+195);
       }
     });
     const footerY=startY+rows*(tileH+gapY)-gapY+35;
     ctx.textAlign="center";ctx.fillStyle="#164e9a";ctx.font="bold 17px system-ui";ctx.fillText("DAILY REWARDS · COLLECT THEM ALL!",600,footerY);
-    if(datedRows.length){ctx.fillStyle="#64748b";ctx.font="13px system-ui";ctx.fillText(`${datedRows.length} card(s) have no matching event date and are not placed in a date slot.`,600,footerY+24)}
+    if(datedRows.length){ctx.fillStyle="#64748b";ctx.font="13px system-ui";ctx.fillText(`${datedRows.length} card(s) have no matching date in this event period.`,600,footerY+24)}
 
-    const fileName=`we-vote-riize-card-collection-${currentAccount}.png`;
-    const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('ไม่สามารถสร้างไฟล์รูปได้')),'image/png'));
-    const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-    if(isIOS){
-      showCollectionImage(blob,fileName);
-      showStatus("accountStatus","สร้าง Card Collection แล้วค่ะ 📱 แตะค้างที่รูป แล้วเลือก Save to Photos / บันทึกไปยังรูปภาพ","info");
+    const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error("ไม่สามารถสร้างไฟล์ PNG ได้")),"image/png"));
+    const fileName=`we-vote-riize-card-collection-${currentAccount}-${cfg.start}-to-${cfg.end}.png`;
+    const url=URL.createObjectURL(blob);
+    if (isIOS && iosTab && !iosTab.closed) {
+      // Safari blocks delayed downloads; open the generated PNG in the tab created on tap.
+      iosTab.location.href=url;
+      showStatus("accountStatus","สร้าง Card Collection แล้วค่ะ เปิดรูปในแท็บใหม่เพื่อบันทึกหรือดาวน์โหลดไฟล์", "info");
+      setTimeout(()=>URL.revokeObjectURL(url), 10*60*1000);
     } else {
-      const url=URL.createObjectURL(blob),link=document.createElement('a');link.download=fileName;link.href=url;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
-      showStatus("accountStatus","ดาวน์โหลด Card Collection เรียบร้อยแล้วค่ะ","info");
+      if (iosTab && !iosTab.closed) iosTab.close();
+      const link=document.createElement("a");
+      link.href=url; link.download=fileName; link.style.display="none";
+      document.body.appendChild(link); link.click(); link.remove();
+      showStatus("accountStatus","สร้างไฟล์ Card Collection แล้วค่ะ หากไม่เริ่มดาวน์โหลด ให้ตรวจการบล็อกดาวน์โหลดของเบราว์เซอร์", "info");
+      setTimeout(()=>URL.revokeObjectURL(url), 10*60*1000);
     }
   } catch(error) {
+    if (iosTab && !iosTab.closed) iosTab.close();
     console.error("Card collection download error:",error);
-    showStatus("accountStatus","ดาวน์โหลดการ์ดสะสมไม่สำเร็จ กรุณาลองอีกครั้ง","err");
+    showStatus("accountStatus",`สร้าง Card Collection ไม่สำเร็จ: ${error.message || error}`,"err");
   }
 }
 $("downloadBtn").addEventListener("click",downloadCertificate);
