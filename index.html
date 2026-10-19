@@ -515,7 +515,6 @@ input[type="file"] {
 
 }
 
-/* Balanced collection section headings */
 .collection-heading {
   display: flex;
   align-items: baseline;
@@ -1694,10 +1693,9 @@ function currentEligibleDays() {
  return eventDates().filter(d=>d<=last);
 }
 async function loadCompleteAccounts() {
- const box=$("completeList"),cfg=activePeriodConfig();
- $("completeHint").textContent="ผู้เล่นทั้งหมด · แสดงชื่อแอคและ LV. โดยไม่จัดอันดับ";
+ const box=$("completeList");
  try {
-  let map={};
+  const map={};
   if(!DB_CONFIGURED){
    const local=JSON.parse(localStorage.getItem("we_vote_riize_stamps")||"{}");
    Object.entries(local).forEach(([account,dates])=>{map[account]=new Set(dates)});
@@ -1705,15 +1703,19 @@ async function loadCompleteAccounts() {
    const rows=await dbRequest("stamp_records?select=account,stamp_date&order=account.asc");
    rows.forEach(r=>{map[r.account]=map[r.account]||new Set();map[r.account].add(r.stamp_date)});
   }
-  const accounts=Object.entries(map).map(([account,dates])=>({account,level:dates.size})).sort((a,b)=>a.account.localeCompare(b.account));
-  paintCompleteAccounts(accounts);
- } catch(e) {box.innerHTML='<div class="empty">โหลดรายชื่อไม่สำเร็จ กรุณาตรวจการตั้งค่าฐานข้อมูล</div>';$("completeCount").textContent="— PLAYERS";}
+  const accounts=Object.entries(map).map(([account,dates])=>({account,level:dates.size}));
+  const highestLevel=accounts.length?Math.max(...accounts.map(item=>item.level)):0;
+  paintCompleteAccounts(accounts.filter(item=>item.level===highestLevel),highestLevel);
+ } catch(e) {
+  box.innerHTML='<div class="empty">โหลดรายชื่อไม่สำเร็จ กรุณาตรวจการตั้งค่าฐานข้อมูล</div>';
+  $("completeCount").textContent="TOP LV. —";
+ }
 }
-function paintCompleteAccounts(accounts) {
-  $("completeCount").textContent=`${accounts.length} PLAYERS`;
+function paintCompleteAccounts(accounts,highestLevel) {
+  $("completeCount").textContent=accounts.length?`TOP LV. ${highestLevel}`:"TOP LV. —";
   $("completeList").innerHTML=accounts.length
-    ? accounts.map(item=>`<div class="collector"><span>@${escapeHTML(item.account)}</span><span class="collector-badge">LV. ${item.level}</span></div>`).join("")
-    : '<div class="empty">ยังไม่มีผู้เล่นเข้าร่วม 🧡</div>';
+    ? accounts.sort((a,b)=>a.account.localeCompare(b.account)).map(item=>`<div class="collector"><span>@${escapeHTML(item.account)}</span><span class="collector-badge">LV. ${item.level}</span></div>`).join("")
+    : '<div class="empty">ยังไม่มีผู้เล่นเข้าร่วม</div>';
 }
 function escapeHTML(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function kstDate(date=new Date()){
@@ -1760,8 +1762,10 @@ async function render(){
    calendarHTML+=valid?`<div class="cal-day ${got?"earned":""}"><span class="day-num">${day}</span><span class="day-status">${got?"✓ CHECKED":"LOCKED"}</span></div>`:`<div class="cal-day empty-day"><span class="day-num"></span><span class="day-status"></span></div>`;
  }
  $("stampGrid").innerHTML=calendarHTML;
- const heading=document.querySelector('#myCards')?.previousElementSibling;if(heading)heading.innerHTML=`CARD COLLECTION <span class="hint" style="font-size:12px">· PERIOD ${String(EVENT_SETTINGS.activePeriod).padStart(2,"0")} · ${EVENT_SETTINGS.activePeriod===2?'UNOWNED + SR':'C + R'}</span>`;
- const p2heading=$("lockedCards")?.previousElementSibling;if(p2heading)p2heading.textContent=EVENT_SETTINGS.activePeriod===2?"PERIOD 02 · ACTIVE · C + R + SR":"PERIOD 02 · SR CARDS · LOCKED";
+ const heading=document.querySelector('#myCards')?.previousElementSibling;
+ if(heading)heading.innerHTML=`<span class="collection-title">CARD COLLECTION</span><span class="collection-period">· PERIOD ${String(EVENT_SETTINGS.activePeriod).padStart(2,"0")} · ${EVENT_SETTINGS.activePeriod===2?'C + R + SR':'C + R'}</span>`;
+ const p2heading=$("lockedCards")?.previousElementSibling;
+ if(p2heading)p2heading.innerHTML=`<span class="collection-title">CARD COLLECTION</span><span class="collection-period">· PERIOD 02 · ${EVENT_SETTINGS.activePeriod===2?'ACTIVE · C + R + SR':'SR CARDS · LOCKED'}</span>`;
  await renderCards(currentAccount);renderLockedCards();
 }
 
@@ -2033,7 +2037,7 @@ async function downloadCertificate() {
         const maxCards=1, cardW=190, cardH=190, startCardX=x+(tileW-cardW)/2;
         dayCards.slice(0,1).forEach((r,j)=>{
           const cx=startCardX+j*(cardW+12),cy=y+40,img=loaded[r.card.id];
-          ctx.fillStyle="#fffdf4";ctx.beginPath();ctx.roundRect(cx-4,cy-4,cardW+8,cardH+8,9);ctx.fill();ctx.strokeStyle="#e63946";ctx.lineWidth=5;ctx.stroke();
+          ctx.fillStyle="#fffdf4";ctx.beginPath();ctx.roundRect(cx-4,cy-4,cardW+8,cardH+8,9);ctx.fill();
           if(img){const scale=Math.min(cardW/img.naturalWidth,cardH/img.naturalHeight),w=img.naturalWidth*scale,h=img.naturalHeight*scale;ctx.drawImage(img,cx+(cardW-w)/2,cy+(cardH-h)/2,w,h)}
           else {ctx.fillStyle="#dbeafe";ctx.fillRect(cx,cy,cardW,cardH);ctx.fillStyle="#164e9a";ctx.font="bold 12px system-ui";ctx.textAlign="center";ctx.fillText(r.card.name,cx+cardW/2,cy+cardH/2)}
         });
