@@ -1520,11 +1520,11 @@ async function saveOwnedCard(account,cardId,day){
  if(!DB_CONFIGURED){
   const ids=localCards(account);if(!ids.includes(cardId)){ids.push(cardId);saveLocalCards(account,ids)}
   const records=localCardRecords(account);
-  if(!records.some(r=>r.card_id===cardId)){records.push({card_id:cardId,period,created_at:new Date().toISOString()});localStorage.setItem(`we_vote_riize_card_records_${account}`,JSON.stringify(records))}
+  if(!records.some(r=>r.card_id===cardId)){records.push({card_id:cardId,period,acquired_date:day || kstDate(new Date()),created_at:new Date().toISOString()});localStorage.setItem(`we_vote_riize_card_records_${account}`,JSON.stringify(records))}
   return;
  }
  try{
-  await dbRequest("card_records",{method:"POST",body:JSON.stringify({account,card_id:cardId,period})});
+  await dbRequest("card_records",{method:"POST",body:JSON.stringify({account,card_id:cardId,period,acquired_date:day || kstDate(new Date())})});
  }catch(e){
   const message=String(e.message);
   if(message.includes("23505")||message.toLowerCase().includes("duplicate")||message.toLowerCase().includes("unique"))return;
@@ -1928,9 +1928,8 @@ async function downloadCertificate() {
     }
     const byDate = new Map();
     cardRows.forEach(r=>{
-      if(!r.created_at) return;
-      // Prefer the explicitly selected event date (including backdated check-ins).
-      // Fall back to created_at for records saved before acquired_date was added.
+      // Use the selected event date first, including backdated check-ins.
+      // Fall back to created_at only for legacy rows without acquired_date.
       const date = r.acquired_date || (r.created_at ? kstDate(new Date(r.created_at)) : null);
       if(!date || date < cfg.start || date > cfg.end) return;
       if(!byDate.has(date)) byDate.set(date,[]);
