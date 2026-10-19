@@ -1413,7 +1413,6 @@ footer,
     <div class="cards-grid" id="lockedCards"></div>
     <div class="actions" style="flex-wrap:wrap">
      <button class="btn primary" id="downloadBtn" type="button">ดาวน์โหลด Card Collection</button>
-     <button class="btn secondary" id="clearInputBtn" type="button">ล้างช่องอัปโหลด</button>
     </div>
    </section>
    <section class="panel">
@@ -1510,9 +1509,18 @@ function localCards(account){try{return JSON.parse(localStorage.getItem(localCar
 function saveLocalCards(account,ids){localStorage.setItem(localCardKey(account),JSON.stringify([...new Set(ids)]))}
 function localCardRecords(account){try{return JSON.parse(localStorage.getItem(`we_vote_riize_card_records_${account}`)||"[]")}catch{return []}}
 function periodLabel(){return `Period ${EVENT_SETTINGS.activePeriod}`}
+function clearLocalCardCache(account){
+ // When Supabase is configured, the database is the single source of truth.
+ // Remove any older browser-only card cache so deleted DB rows cannot reappear.
+ try{
+  localStorage.removeItem(localCardKey(account));
+  localStorage.removeItem(`we_vote_riize_card_records_${account}`);
+ }catch(e){ console.warn("Could not clear local card cache",e); }
+}
 async function ownedCardIds(account){
  if(!DB_CONFIGURED)return localCards(account);
  const rows=await dbRequest(`card_records?select=card_id&account=eq.${encodeURIComponent(account)}`);
+ clearLocalCardCache(account);
  return rows.map(r=>r.card_id);
 }
 async function saveOwnedCard(account,cardId,day){
@@ -1520,11 +1528,11 @@ async function saveOwnedCard(account,cardId,day){
  if(!DB_CONFIGURED){
   const ids=localCards(account);if(!ids.includes(cardId)){ids.push(cardId);saveLocalCards(account,ids)}
   const records=localCardRecords(account);
-  if(!records.some(r=>r.card_id===cardId)){records.push({card_id:cardId,period,acquired_date:day || kstDate(new Date()),created_at:new Date().toISOString()});localStorage.setItem(`we_vote_riize_card_records_${account}`,JSON.stringify(records))}
+  if(!records.some(r=>r.card_id===cardId)){records.push({card_id:cardId,period,acquired_date:day,created_at:new Date().toISOString()});localStorage.setItem(`we_vote_riize_card_records_${account}`,JSON.stringify(records))}
   return;
  }
  try{
-  await dbRequest("card_records",{method:"POST",body:JSON.stringify({account,card_id:cardId,period,acquired_date:day || kstDate(new Date())})});
+  await dbRequest("card_records",{method:"POST",body:JSON.stringify({account,card_id:cardId,period,acquired_date:day})});
  }catch(e){
   const message=String(e.message);
   if(message.includes("23505")||message.toLowerCase().includes("duplicate")||message.toLowerCase().includes("unique"))return;
@@ -1536,7 +1544,9 @@ async function ownedCardRecords(account){
   const records=localCardRecords(account);const known=new Set(records.map(r=>r.card_id));
   return [...records,...localCards(account).filter(id=>!known.has(id)).map(card_id=>({card_id,period:null,created_at:null}))];
  }
- return await dbRequest(`card_records?select=card_id,period,created_at,acquired_date&account=eq.${encodeURIComponent(account)}&order=acquired_date.asc.nullsfirst,created_at.asc`);
+ const rows=await dbRequest(`card_records?select=card_id,period,created_at,acquired_date&account=eq.${encodeURIComponent(account)}&order=acquired_date.asc.nullsfirst,created_at.asc`);
+ clearLocalCardCache(account);
+ return rows;
 }
 async function drawCard(account,day){
  const owned=await ownedCardIds(account);
@@ -1904,7 +1914,17 @@ async function downloadCertificate() {
     const cardRows = records
       .filter(r => Number(String(r.period || "").replace(/\D/g, "")) === periodNo)
       .map(r => ({...r, card:cardById.get(r.card_id)}))
-      .filter(r => r.card && r.card.rank !== "SP");
+      .filter(r => r.card && r.card.rank !== "SP")
+      .sort((a,b) => String(a.created_at || "").localeCompare(String(b.created_at || "")));
+
+    // For older card_records without acquired_date, reconcile cards to the user's
+    // actual stamp_records.stamp_date history. Pair the latest N stamped dates
+    // with the N cards in this period, so backdated stamps are reflected instead
+    // of assigning every legacy card to the date it was inserted into Supabase.
+    const stampedDates = [...new Set((rec.stamps || []).filter(d => d >= cfg.start && d <= cfg.end))].sort();
+    const legacyRows = cardRows.filter(r => !/^\d{4}-\d{2}-\d{2}$/.test(String(r.acquired_date || "")));
+    const fallbackDates = stampedDates.slice(Math.max(0, stampedDates.length - legacyRows.length));
+    legacyRows.forEach((r, i) => { r._stampDateFallback = fallbackDates[i] || null; });
 
     const loaded = {};
     await Promise.all(cardRows.map(async r => {
@@ -1928,16 +1948,16 @@ async function downloadCertificate() {
     }
     const byDate = new Map();
     cardRows.forEach(r=>{
-      // Use the selected event date first, including backdated check-ins.
-      // Fall back to created_at only for legacy rows without acquired_date.
-      const date = r.acquired_date || (r.created_at ? kstDate(new Date(r.created_at)) : null);
+      // Prefer the explicit acquired_date, then the historical stamp_date mapping,
+      // and only then fall back to created_at for records without stamp history.
+      const date = r.acquired_date || r._stampDateFallback || (r.created_at ? kstDate(new Date(r.created_at)) : null);
       if(!date || date < cfg.start || date > cfg.end) return;
       if(!byDate.has(date)) byDate.set(date,[]);
       byDate.get(date).push(r);
     });
     allDates.forEach(d=>{d.cards=byDate.get(d.date)||[];});
     const datedRows=cardRows.filter(r=>{
-      const date = r.acquired_date || (r.created_at ? kstDate(new Date(r.created_at)) : null);
+      const date = r.acquired_date || r._stampDateFallback || (r.created_at ? kstDate(new Date(r.created_at)) : null);
       return !date || date < cfg.start || date > cfg.end;
     });
 
@@ -2009,7 +2029,6 @@ async function downloadCertificate() {
   }
 }
 $("downloadBtn").addEventListener("click",downloadCertificate);
-$("clearInputBtn").addEventListener("click",()=>{$("proof").value="";hideStatus("uploadStatus")});
 setupDates();
 if(!DB_CONFIGURED) {
   showStatus("accountStatus","ยังไม่ได้เชื่อมต่อฐานข้อมูลกลาง จะแสดงข้อมูลเฉพาะเบราว์เซอร์นี้จนกว่าจะตั้งค่า Supabase","info");
