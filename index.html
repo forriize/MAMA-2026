@@ -1536,7 +1536,7 @@ async function ownedCardRecords(account){
   const records=localCardRecords(account);const known=new Set(records.map(r=>r.card_id));
   return [...records,...localCards(account).filter(id=>!known.has(id)).map(card_id=>({card_id,period:null,created_at:null}))];
  }
- return await dbRequest(`card_records?select=card_id,period,created_at&account=eq.${encodeURIComponent(account)}&order=created_at.asc`);
+ return await dbRequest(`card_records?select=card_id,period,created_at,acquired_date&account=eq.${encodeURIComponent(account)}&order=acquired_date.asc.nullsfirst,created_at.asc`);
 }
 async function drawCard(account,day){
  const owned=await ownedCardIds(account);
@@ -1647,7 +1647,7 @@ async function loadCompleteAccounts() {
  $("completeHint").textContent=total?`Player ที่เลเวลสูงสุดใน Period ${EVENT_SETTINGS.activePeriod} (${eventDateLabel(cfg.start)}–${eventDateLabel(last)})`:`รายชื่อผู้สะสมครบจะเริ่มแสดงเมื่อถึง ${eventDateLabel(cfg.start)}`;
  if(!total){paintCompleteAccounts([],total);return}
  if(!DB_CONFIGURED){const local=JSON.parse(localStorage.getItem("we_vote_riize_stamps")||"{}");const complete=Object.entries(local).filter(([_,dates])=>eligible.every(date=>new Set(dates).has(date))).map(([account])=>account);paintCompleteAccounts(complete,total);return}
- try{const rows=await dbRequest("stamp_records?select=account,stamp_date&order=account.asc");const map={};rows.forEach(r=>{map[r.account]=map[r.account]||new Set();map[r.account].add(r.stamp_date)});const complete=Object.entries(map).filter(([_,dates])=>eligible.every(date=>dates.has(date))).map(([account])=>account);paintCompleteAccounts(complete,total)}catch(e){box.innerHTML='<div class="empty">โหลดรายชื่อไม่สำเร็จ</div>';$("completeCount").textContent="— COMPLETE"}
+ try{const rows=await dbRequest("stamp_records?select=account,stamp_date&order=account.asc");const map={};rows.forEach(r=>{map[r.account]=map[r.account]||new Set();map[r.account].add(r.stamp_date)});const complete=Object.entries(map).filter(([_,dates])=>eligible.every(date=>dates.has(date))).map(([account])=>account);paintCompleteAccounts(complete,total)}catch(e){box.innerHTML='<div class="empty">โหลดรายชื่อไม่สำเร็จ กรุณาตรวจการตั้งค่าฐานข้อมูล</div>';$("completeCount").textContent="— COMPLETE"}
 }
 function paintCompleteAccounts(accounts, total = currentEligibleDays().length) {
   $("completeCount").textContent=`${accounts.length} COMPLETE`;
@@ -1929,13 +1929,18 @@ async function downloadCertificate() {
     const byDate = new Map();
     cardRows.forEach(r=>{
       if(!r.created_at) return;
-      const date=kstDate(new Date(r.created_at));
-      if(date < cfg.start || date > cfg.end) return;
+      // Prefer the explicitly selected event date (including backdated check-ins).
+      // Fall back to created_at for records saved before acquired_date was added.
+      const date = r.acquired_date || (r.created_at ? kstDate(new Date(r.created_at)) : null);
+      if(!date || date < cfg.start || date > cfg.end) return;
       if(!byDate.has(date)) byDate.set(date,[]);
       byDate.get(date).push(r);
     });
     allDates.forEach(d=>{d.cards=byDate.get(d.date)||[];});
-    const datedRows=cardRows.filter(r=>!r.created_at || kstDate(new Date(r.created_at))<cfg.start || kstDate(new Date(r.created_at))>cfg.end);
+    const datedRows=cardRows.filter(r=>{
+      const date = r.acquired_date || (r.created_at ? kstDate(new Date(r.created_at)) : null);
+      return !date || date < cfg.start || date > cfg.end;
+    });
 
     const cols=3, tileW=344, tileH=222, gapX=24, gapY=18, rows=Math.ceil(allDates.length/cols);
     const canvas=document.createElement("canvas");
