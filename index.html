@@ -580,8 +580,6 @@ input[type="file"] {
   font-size:11px
 }
 
-/* Orange / white / black visual refresh;
-  stamp artwork remains pastel */
 :root {
   --ink:#171717;
   --muted:#66615d;
@@ -1585,16 +1583,16 @@ async function drawCard(account,day){
  const available=CARD_SET.filter(c=>!owned.includes(c.id) && (EVENT_SETTINGS.activePeriod===2 || c.rank!=="SR"));
  if(!available.length)return null;
  let card;
- if(EVENT_SETTINGS.activePeriod===2){
-   card=available[Math.floor(Math.random()*available.length)];
- } else {
-   const tiers=[{rank:"C",weight:70},{rank:"R",weight:30}]
-    .map(t=>({...t,cards:available.filter(c=>c.rank===t.rank)})).filter(t=>t.cards.length);
-   const totalWeight=tiers.reduce((sum,t)=>sum+t.weight,0);
-   let roll=Math.random()*totalWeight; let chosenTier=tiers[tiers.length-1];
-   for(const tier of tiers){roll-=tier.weight;if(roll<0){chosenTier=tier;break}}
-   card=chosenTier.cards[Math.floor(Math.random()*chosenTier.cards.length)];
- }
+ const tiers=(EVENT_SETTINGS.activePeriod===2
+   ? [{rank:"C",weight:50},{rank:"R",weight:40},{rank:"SR",weight:10}]
+   : [{rank:"C",weight:70},{rank:"R",weight:30}])
+   .map(t=>({...t,cards:available.filter(c=>c.rank===t.rank)}))
+   .filter(t=>t.cards.length>0);
+ const totalWeight=tiers.reduce((sum,t)=>sum+t.weight,0);
+ let roll=Math.random()*totalWeight;
+ let chosenTier=tiers[tiers.length-1];
+ for(const tier of tiers){roll-=tier.weight;if(roll<0){chosenTier=tier;break}}
+ card=chosenTier.cards[Math.floor(Math.random()*chosenTier.cards.length)];
  await saveOwnedCard(account,card.id,day);
  return card;
 }
@@ -1633,7 +1631,19 @@ async function renderCards(account){
   </article>`;
  }).join('');
 }
-async function updatePublicStats(){try{let rows;if(DB_CONFIGURED)rows=await dbRequest("stamp_records?select=account,stamp_date");else{const d=JSON.parse(localStorage.getItem("we_vote_riize_stamps")||"{}");rows=Object.entries(d).flatMap(([account,dates])=>dates.map(stamp_date=>({account,stamp_date})))}const accounts=new Set(rows.map(r=>r.account));const today=kstDate();const countToday=rows.filter(r=>r.stamp_date===today).length;$("playerTotal").textContent=accounts.size;$("todayVotes").textContent=countToday;$("totalVotes").textContent=rows.length;}catch(e){$("playerTotal").textContent="—";$("todayVotes").textContent="—";$("totalVotes").textContent="—"}}
+async function fetchAllStampRows(select="account,stamp_date", extraQuery=""){
+ const all=[];
+ const pageSize=1000;
+ for(let offset=0;;offset+=pageSize){
+  const query=`stamp_records?select=${encodeURIComponent(select)}${extraQuery}&limit=${pageSize}&offset=${offset}`;
+  const page=await dbRequest(query);
+  if(!Array.isArray(page)) throw new Error("รูปแบบข้อมูล stamp_records ไม่ถูกต้อง");
+  all.push(...page);
+  if(page.length<pageSize) break;
+ }
+ return all;
+}
+async function updatePublicStats(){try{let rows;if(DB_CONFIGURED)rows=await fetchAllStampRows("account,stamp_date");else{const d=JSON.parse(localStorage.getItem("we_vote_riize_stamps")||"{}");rows=Object.entries(d).flatMap(([account,dates])=>dates.map(stamp_date=>({account,stamp_date})))}const accounts=new Set(rows.map(r=>r.account));const today=kstDate();const countToday=rows.filter(r=>r.stamp_date===today).length;$("playerTotal").textContent=accounts.size;$("todayVotes").textContent=countToday;$("totalVotes").textContent=rows.length;}catch(e){console.error("Public stats load failed",e);$("playerTotal").textContent="—";$("todayVotes").textContent="—";$("totalVotes").textContent="—"}}
 
 // Project URL และ anon key จาก Supabase
 const SUPABASE_URL = "https://mpsecejxdmxlqrhqndmi.supabase.co";
@@ -1700,7 +1710,7 @@ async function loadCompleteAccounts() {
    const local=JSON.parse(localStorage.getItem("we_vote_riize_stamps")||"{}");
    Object.entries(local).forEach(([account,dates])=>{map[account]=new Set(dates)});
   } else {
-   const rows=await dbRequest("stamp_records?select=account,stamp_date&order=account.asc");
+   const rows=await fetchAllStampRows("account,stamp_date", "&order=account.asc");
    rows.forEach(r=>{map[r.account]=map[r.account]||new Set();map[r.account].add(r.stamp_date)});
   }
   const accounts=Object.entries(map).map(([account,dates])=>({account,level:dates.size}));
@@ -1946,8 +1956,7 @@ async function checkTargetPhotoFast(uploadedImage) {
 }
 
 async function downloadCertificate() {
-  // Open a tab immediately in the user click gesture for Safari/iOS fallback.
-  // Desktop browsers still receive a normal PNG download.
+ 
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   let iosTab = null;
@@ -2011,7 +2020,7 @@ async function downloadCertificate() {
     const logicalWidth=1200, logicalHeight=340+rows*(tileH+gapY)+55;
     const renderScale=3;
     const canvas=document.createElement("canvas");
-    // Render at 3x resolution while keeping the original layout coordinates.
+    
     canvas.width=logicalWidth*renderScale;
     canvas.height=logicalHeight*renderScale;
     const ctx=canvas.getContext("2d");
