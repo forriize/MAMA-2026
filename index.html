@@ -1804,18 +1804,16 @@ $("stampBtn").addEventListener("click",async()=>{
     const img=await loadImage(file);
     showStatus("uploadStatus","กำลังตรวจสอบภาพ…","info");
     const photoResult = await checkTargetPhotoFast(img);
-    if(photoResult === "uncertain"){
-      const confirmPhoto = window.confirm("ระบบตรวจภาพได้ไม่ชัดเจน\n\nกรุณายืนยันว่าได้โหวต RIIZE ในหมวด FAN’S CHOICE MALE เรียบร้อยแล้ว \n\nกด OK เพื่อดำเนินการต่อ หรือ Cancel เพื่อหยุด");
-      if(!confirmPhoto){
-        showStatus("uploadStatus","ไม่สามารถตรวจสอบได้ กรุณาเลือกภาพ Certificate ที่เห็นชัดเจน","err");
-        return;
-      }
-    } else if(!photoResult){
-      const confirmPhoto = window.confirm("ระบบตรวจภาพได้ไม่ชัดเจน\n\nกรุณายืนยันว่าได้โหวต RIIZE ในหมวด FAN’S CHOICE MALE เรียบร้อยแล้ว \n\nกด OK เพื่อดำเนินการต่อ หรือ Cancel เพื่อหยุด");
-      if(!confirmPhoto){
-        showStatus("uploadStatus","ยกเลิกแล้ว กรุณาเลือกภาพ Certificate ที่เห็นชัดเจน","err");
-        return;
-      }
+    // Ask for user confirmation for every uploaded image, including images
+    // the visual matcher considers a clear match. This avoids device/browser-
+    // dependent false negatives blocking users with a genuine certificate.
+    const confirmMessage = photoResult === true
+      ? "ภาพมีลักษณะตรงกับใบ Voting Certificate\n\nคุณยืนยันว่าได้โหวต RIIZE ในหมวด FAN’S CHOICE MALE เรียบร้อยแล้วใช่ไหม?\n\nกด OK เพื่อดำเนินการต่อ หรือ Cancel เพื่อหยุด"
+      : "ระบบตรวจภาพได้ไม่ชัดเจน\n\nคุณยืนยันว่าได้โหวต RIIZE ในหมวด FAN’S CHOICE MALE เรียบร้อยแล้วใช่ไหม?\n\nกด OK เพื่อดำเนินการต่อ หรือ Cancel เพื่อหยุด";
+    const confirmPhoto = window.confirm(confirmMessage);
+    if(!confirmPhoto){
+      showStatus("uploadStatus","ยกเลิกแล้ว คุณสามารถเลือกภาพ Certificate แล้วลองใหม่ได้","err");
+      return;
     }
     showStatus("uploadStatus","ตรวจสอบแล้ว กำลังอ่านข้อความวันที่บนใบรับรอง…","info");
     let ocrText="";
