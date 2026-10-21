@@ -1610,11 +1610,15 @@ async function renderCards(account){
  if(account){
   try{
    const rec=await accountRecordFor(account);
-   level=(rec.stamps||[]).length;
+   // Count unique valid event dates, matching the LV shown in the calendar.
+   // Duplicate stamp rows must never unlock the full collection early.
+   const validDates=new Set(eventDates());
+   level=new Set((rec.stamps||[]).filter(date=>validDates.has(date))).size;
   }catch(e){ level=0; }
  }
- // Reveal the full collection only after reaching LV.22; before that show only cards actually received.
- const unlockAll=level>=22;
+ // Reveal the full collection only after all 22 unique event dates are checked in.
+ // Before LV.22, only card IDs recorded for this account in card_records are displayed.
+ const unlockAll=level>=eventDates().length && eventDates().length===22;
  const palettes={SHOTARO:['#f7a3c5','#ffe2ef','#ffd5a7'],EUNSEOK:['#f4d75e','#fff4b8','#ffe7a8'],SUNGCHAN:['#72b7ff','#d7efff','#d8ddff'],WONBIN:['#a887f0','#eee1ff','#d7dfff'],SOHEE:['#e45b65','#ffd9dc','#ffe6cf'],ANTON:['#34c89a','#d8fff0','#d6f5e9']};
  const marks={SHOTARO:'♫',EUNSEOK:'✦',SUNGCHAN:'⬟',WONBIN:'★',SOHEE:'♡',ANTON:'⌘'};
  // Keep every card in CARD_SET for future drops, but do not display unowned cards before LV.22.
