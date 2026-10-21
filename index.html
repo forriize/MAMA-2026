@@ -1606,19 +1606,19 @@ async function renderCards(account){
  const el=$("myCards");if(!el)return;
  const ids=account?await ownedCardIds(account):[];
  
- let checkedEveryEventDay=false;
+ let level=0;
  if(account){
   try{
    const rec=await accountRecordFor(account);
-   const earnedDates=new Set(rec.stamps||[]);
-   const requiredDates=eventDates();
-   checkedEveryEventDay=requiredDates.length>0 && requiredDates.every(date=>earnedDates.has(date));
-  }catch(e){ checkedEveryEventDay=false; }
+   level=(rec.stamps||[]).length;
+  }catch(e){ level=0; }
  }
- const unlockAll=checkedEveryEventDay;
+ // Reveal the full collection only after reaching LV.22; before that show only cards actually received.
+ const unlockAll=level>=22;
  const palettes={SHOTARO:['#f7a3c5','#ffe2ef','#ffd5a7'],EUNSEOK:['#f4d75e','#fff4b8','#ffe7a8'],SUNGCHAN:['#72b7ff','#d7efff','#d8ddff'],WONBIN:['#a887f0','#eee1ff','#d7dfff'],SOHEE:['#e45b65','#ffd9dc','#ffe6cf'],ANTON:['#34c89a','#d8fff0','#d6f5e9']};
  const marks={SHOTARO:'♫',EUNSEOK:'✦',SUNGCHAN:'⬟',WONBIN:'★',SOHEE:'♡',ANTON:'⌘'};
- const visibleCards=CARD_SET.filter(c=>EVENT_SETTINGS.activePeriod===2 || c.rank!=="SR");
+ // Keep every card in CARD_SET for future drops, but do not display unowned cards before LV.22.
+ const visibleCards=CARD_SET.filter(c=>ids.includes(c.id) || (unlockAll && (EVENT_SETTINGS.activePeriod===2 || c.rank!=="SR")));
  el.innerHTML=visibleCards.map(c=>{
   const owned=ids.includes(c.id);const visuallyUnlocked=owned||unlockAll;const [accent,bg1,bg2]=palettes[c.name]||['#a887f0','#eee1ff','#d7dfff'];
   const skinClass=c.rank==='SR'?'project-x':c.skin==='COOL'?'cool':c.skin==='CUTE'?'cute':'character';
