@@ -1621,8 +1621,8 @@ async function renderCards(account){
  const unlockAll=level>=eventDates().length && eventDates().length===22;
  const palettes={SHOTARO:['#f7a3c5','#ffe2ef','#ffd5a7'],EUNSEOK:['#f4d75e','#fff4b8','#ffe7a8'],SUNGCHAN:['#72b7ff','#d7efff','#d8ddff'],WONBIN:['#a887f0','#eee1ff','#d7dfff'],SOHEE:['#e45b65','#ffd9dc','#ffe6cf'],ANTON:['#34c89a','#d8fff0','#d6f5e9']};
  const marks={SHOTARO:'♫',EUNSEOK:'✦',SUNGCHAN:'⬟',WONBIN:'★',SOHEE:'♡',ANTON:'⌘'};
- // Keep every card in CARD_SET for future drops, but do not display unowned cards before LV.22.
- const visibleCards=CARD_SET.filter(c=>ids.includes(c.id) || (unlockAll && (EVENT_SETTINGS.activePeriod===2 || c.rank!=="SR")));
+ // Always keep the Period 1 C + R album visible. Before LV.22, only cards actually recorded for this account are revealed; unowned cards stay as hidden placeholders. At LV.22, reveal the full C + R collection.
+ const visibleCards=CARD_SET.filter(c=>c.rank!=="SR" && (EVENT_SETTINGS.activePeriod===1 || EVENT_SETTINGS.activePeriod===2));
  el.innerHTML=visibleCards.map(c=>{
   const owned=ids.includes(c.id);const visuallyUnlocked=owned||unlockAll;const [accent,bg1,bg2]=palettes[c.name]||['#a887f0','#eee1ff','#d7dfff'];
   const skinClass=c.rank==='SR'?'project-x':c.skin==='COOL'?'cool':c.skin==='CUTE'?'cute':'character';
@@ -1630,8 +1630,8 @@ async function renderCards(account){
   const bgA=c.rank==='SR'?'#d6c3ff':c.skin==='COOL'?'#b9dfff':c.skin==='CUTE'?'#ffd5e9':bg1;
   const bgB=c.rank==='SR'?'#fff0b7':c.skin==='COOL'?'#e7e2ff':c.skin==='CUTE'?'#fff0bb':bg2;
   return `<article class="game-card ${visuallyUnlocked?'owned':'missing'} ${skinClass}" style="--card-accent:${accent};--card-bg1:${bgA};--card-bg2:${bgB}">
-   <div class="art-stage"><div class="card-fallback"><span class="rank-label">RANK ${c.rank}</span><span class="character-mark">${mark}</span><strong class="placeholder-name">${c.name}</strong><span class="skin-label">${c.skin==='CHARACTER'?'CHARACTER CARD':c.skin==='PROJECT X'?'PROJECT X':c.skin+' SKIN'}</span></div>${(owned||unlockAll)?`<img src="${c.file}" alt="${c.name} ${c.rank} ${c.skin}" onerror="this.classList.add('img-failed')" loading="lazy">`:``}</div>
-   <div class="card-meta"><b>${c.name}</b><span class="rarity">${c.rank}</span></div>
+   <div class="art-stage"><div class="card-fallback"><span class="rank-label">RANK ${c.rank}</span><span class="character-mark">${mark}</span><strong class="placeholder-name">${c.name}</strong><span class="skin-label">${c.skin==='CHARACTER'?'CHARACTER CARD':c.skin==='PROJECT X'?'PROJECT X':c.skin+' SKIN'}</span></div>${visuallyUnlocked?`<img src="${c.file}" alt="${c.name} ${c.rank} ${c.skin}" onerror="this.classList.add('img-failed')" loading="lazy">`:``}</div>
+   <div class="card-meta"><b>${c.name}</b><span class="rarity">${owned?'COLLECTED':unlockAll?'UNLOCKED':'LOCKED'}</span></div>
   </article>`;
  }).join('');
 }
