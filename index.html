@@ -1000,7 +1000,7 @@ input[type='file'] {
 }
 
 /* Calendar */
-.calendar {
+.calendar { grid-template-columns: repeat(7, minmax(0, 1fr));
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 7px;
@@ -1285,6 +1285,10 @@ footer,
     margin: 12px 5px 10px !important;
   }
 }
+
+.game-card.awakening { border-color:#d7a900 !important; box-shadow:4px 4px 0 #18304a, 0 0 12px #ffd92866 !important; }
+.game-card.awakening .rarity { color:#b27b00 !important; }
+.game-card.awakening .effect-strip { background:#fff0a3 !important; }
 </style>
  </head>
  <body>
@@ -1297,7 +1301,7 @@ footer,
      2026 MAMA FAN’S CHOICE
     </p>
     <p class="event-datetime">
-     2026.10.12 19:00 - 10.22 23:59 (KST)
+     2026.10.28 00:00 - 11.08 23:59 (KST)
     </p>
     <div class="hero-pill">
      Vote for collecting cards
@@ -1308,7 +1312,7 @@ footer,
     <div class="stat-box"><span class="num" id="todayVotes">—</span><span class="label">Votes today · KST</span></div>
     <div class="stat-box"><span class="num" id="totalVotes">—</span><span class="label">Total check-ins</span></div>
    </section>
-   <section class="panel game-bar"><div><div class="hint" id="periodActiveLabel">PERIOD 01 · ACTIVE MISSION · 12/10/2026–22/10/2026</div><h2 style="margin:8px 0 0">CHECK-IN EVENT</h2></div><span class="level-chip">CARD DROP WHEN LV.UP</span></section>
+   <section class="panel game-bar"><div><div class="hint" id="periodActiveLabel">PERIOD 02 · ACTIVE MISSION · 26/10/2026–06/11/2026</div><h2 style="margin:8px 0 0">CHECK-IN EVENT</h2></div><span class="level-chip">CARD DROP WHEN LV.UP</span></section>
    <section class="howto">
     <div class="howto-title">
     HOW TO COLLECT CARDS
@@ -1430,7 +1434,7 @@ footer,
       CHECK-IN CALENDAR
      </h2>
      <span class="count" id="count">
-      LV. 0 / 22
+      LV. 0 / 23
      </span>
     </div>
     <div class="calendar" id="stampGrid"></div>
@@ -1442,7 +1446,7 @@ footer,
     <div class="cards-grid" id="myCards"><div class="empty">กรอกแอคแล้วกดดูคอลเลกชันการ์ด</div></div>
     <h3 class="collection-heading">
       <span class="collection-title">CARD COLLECTION</span>
-      <span class="collection-period">· PERIOD 02 · SR CARDS · LOCKED</span>
+      <span class="collection-period">· PERIOD 02 · ALL CARDS</span>
     </h3>
     <div class="cards-grid" id="lockedCards"></div>
     <div class="actions" style="flex-wrap:wrap">
@@ -1475,7 +1479,7 @@ footer,
   <script>
 // ===== EVENT SETTINGS: period =====
 const EVENT_SETTINGS = {
-  activePeriod: 1, // 1 or 2
+  activePeriod: 2, // 1 or 2
   periods: {
     1: {
       start: "2026-10-12", end: "2026-10-22",
@@ -1483,7 +1487,7 @@ const EVENT_SETTINGS = {
       title: "PERIOD 01 · ACTIVE MISSION"
     },
     2: {
-      start: "2026-10-26", end: "2026-11-05",
+      start: "2026-10-28", end: "2026-11-08",
       startTime: "00:00", endTime: "23:59", timezone: "KST",
       title: "PERIOD 02 · ACTIVE MISSION"
     }
@@ -1504,7 +1508,9 @@ renderEventDate();
 function dateParts(iso){ const [year,month,day]=iso.split("-").map(Number); return {year,month,day}; }
 function isoDate(year,month,day){ return `${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`; }
 function eventDateLabel(iso){ const d=dateParts(iso); return `${d.day}/${d.month}/${d.year}`; }
-function eventDates(){ const cfg=activePeriodConfig(),out=[]; for(let t=Date.parse(cfg.start+"T00:00:00Z");t<=Date.parse(cfg.end+"T00:00:00Z");t+=86400000) out.push(new Date(t).toISOString().slice(0,10)); return out; }
+function datesBetween(start,end){ const out=[]; for(let t=Date.parse(start+"T00:00:00Z");t<=Date.parse(end+"T00:00:00Z");t+=86400000) out.push(new Date(t).toISOString().slice(0,10)); return out; }
+function eventDates(){ const cfg=activePeriodConfig(); return datesBetween(cfg.start,cfg.end); }
+function allEventDates(){ return [...datesBetween(EVENT_SETTINGS.periods[1].start,EVENT_SETTINGS.periods[1].end),...datesBetween(EVENT_SETTINGS.periods[2].start,EVENT_SETTINGS.periods[2].end)]; }
 function isActivePeriodDate(iso){ const cfg=activePeriodConfig(); return iso>=cfg.start && iso<=cfg.end; }
 
 const DAYS = [
@@ -1532,7 +1538,8 @@ const CARD_SET = [
   {id:n.toLowerCase()+"-cool",name:n,rank:"R",skin:"COOL",file:`images/${n.toLowerCase()}-r-cool.png`,effect:["+100 ATK SPD","+100 ACCURACY","+100 ATK","+100 CRIT RATE","+100 CRIT DMG","+100 STRATEGY"][i]},
   {id:n.toLowerCase()+"-cute",name:n,rank:"R",skin:"CUTE",file:`images/${n.toLowerCase()}-r-cute.png`,effect:["+100 TEAM SPD","+100 LUCK","+100 SHIELD","+100 EVADE","+100 HP RECOVERY","+100 SKILL RATE"][i]}
  ]),
- ...["SHOTARO","EUNSEOK","SUNGCHAN","WONBIN","SOHEE","ANTON"].map((n,i)=>({id:n.toLowerCase()+"-sr",name:n,rank:"SR",skin:"PROJECT X",file:`images/${n.toLowerCase()}-sr.png`,effect:["+200 TEAM SPD","+200 COMMAND","+200 DEF","+200 CRIT RATE","+200 ATK","+200 DEBUFF RES"][i]}))
+ ...["SHOTARO","EUNSEOK","SUNGCHAN","WONBIN","SOHEE","ANTON"].map((n,i)=>({id:n.toLowerCase()+"-sr",name:n,rank:"SR",skin:"PROJECT X",file:`images/${n.toLowerCase()}-sr.png`,effect:["+200 TEAM SPD","+200 COMMAND","+200 DEF","+200 CRIT RATE","+200 ATK","+200 DEBUFF RES"][i]})),
+ ...["SHOTARO","EUNSEOK","SUNGCHAN","WONBIN","SOHEE","ANTON"].map((n,i)=>({id:n.toLowerCase()+"-ssr",name:n,rank:"SSR",skin:"AWAKENING",file:`images/${n.toLowerCase()}-ssr.png`,effect:["+200 ACCURACY +150 CRIT RATE","+200 DEF +100 DMG RED","+200 TEAM ATK +150 ACCURACY","+200 HEART STEAL +150 EVADE","+200 ATK SPD +150 STAT RECOV","+200 DEBUFF RES +150 STATUS RES"][i]}))
 ];
 const PERIOD2_LOCKED = [];
 function localCardKey(account){return `we_vote_riize_cards_${account}`}
@@ -1580,60 +1587,70 @@ async function ownedCardRecords(account){
 }
 async function drawCard(account,day){
  const owned=await ownedCardIds(account);
- const available=CARD_SET.filter(c=>!owned.includes(c.id) && (EVENT_SETTINGS.activePeriod===2 || c.rank!=="SR"));
+ const available=CARD_SET.filter(c=>!owned.includes(c.id) && (EVENT_SETTINGS.activePeriod===2 || c.rank==="C" || c.rank==="R"));
  if(!available.length)return null;
- let card;
  const tiers=(EVENT_SETTINGS.activePeriod===2
-   ? [{rank:"C",weight:50},{rank:"R",weight:40},{rank:"SR",weight:10}]
-   : [{rank:"C",weight:70},{rank:"R",weight:30}])
+   ? [{rank:"C",weight:40},{rank:"R",weight:30},{rank:"SR",weight:20},{rank:"SSR",weight:10}]
+   : [{rank:"C",weight:40},{rank:"R",weight:30}])
    .map(t=>({...t,cards:available.filter(c=>c.rank===t.rank)}))
    .filter(t=>t.cards.length>0);
  const totalWeight=tiers.reduce((sum,t)=>sum+t.weight,0);
- let roll=Math.random()*totalWeight;
- let chosenTier=tiers[tiers.length-1];
+ let roll=Math.random()*totalWeight,chosenTier=tiers[tiers.length-1];
  for(const tier of tiers){roll-=tier.weight;if(roll<0){chosenTier=tier;break}}
- card=chosenTier.cards[Math.floor(Math.random()*chosenTier.cards.length)];
+ const card=chosenTier.cards[Math.floor(Math.random()*chosenTier.cards.length)];
  await saveOwnedCard(account,card.id,day);
  return card;
 }
+function renderRankCards(targetId,ranks,ids,unlockAll){
+ const el=$(targetId);if(!el)return;
+ const cards=CARD_SET.filter(c=>ranks.includes(c.rank));
+ const palettes={SHOTARO:['#f7a3c5','#ffe2ef','#ffd5a7'],EUNSEOK:['#f4d75e','#fff4b8','#ffe7a8'],SUNGCHAN:['#72b7ff','#d7efff','#d8ddff'],WONBIN:['#a887f0','#eee1ff','#d7dfff'],SOHEE:['#e45b65','#ffd9dc','#ffe6cf'],ANTON:['#34c89a','#d8fff0','#d6f5e9']};
+ const marks={SHOTARO:'♫',EUNSEOK:'✦',SUNGCHAN:'⬟',WONBIN:'★',SOHEE:'♡',ANTON:'⌘'};
+ el.innerHTML=cards.map(c=>{
+  const owned=ids.includes(c.id),visuallyUnlocked=owned||unlockAll;
+  const [accent,bg1,bg2]=palettes[c.name]||['#a887f0','#eee1ff','#d7dfff'];
+  const skinClass=c.rank==='SR'?'project-x':c.rank==='SSR'?'awakening':c.skin==='COOL'?'cool':c.skin==='CUTE'?'cute':'character';
+  const mark=c.rank==='SSR'?'✦':c.rank==='SR'?'✧':c.skin==='COOL'?'⚡':c.skin==='CUTE'?'♡':(marks[c.name]||'★');
+  const bgA=c.rank==='SSR'?'#ffe18a':c.rank==='SR'?'#d6c3ff':c.skin==='COOL'?'#b9dfff':c.skin==='CUTE'?'#ffd5e9':bg1;
+  const bgB=c.rank==='SSR'?'#fff5c4':c.rank==='SR'?'#fff0b7':c.skin==='COOL'?'#e7e2ff':c.skin==='CUTE'?'#fff0bb':bg2;
+  return `<article class="game-card ${visuallyUnlocked?'owned':'missing'} ${skinClass}" style="--card-accent:${accent};--card-bg1:${bgA};--card-bg2:${bgB}">
+   <div class="art-stage"><div class="card-fallback"><span class="rank-label">RANK ${c.rank}</span><span class="character-mark">${mark}</span><strong class="placeholder-name">${c.name}</strong><span class="skin-label">${c.skin==='CHARACTER'?'CHARACTER CARD':c.skin==='PROJECT X'?'PROJECT X':c.skin}</span></div>${visuallyUnlocked?`<img src="${c.file}" alt="${c.name} ${c.rank} ${c.skin}" onerror="this.classList.add('img-failed')" loading="lazy">`:``}</div>
+   <div class="card-meta"><b>${c.name}</b><span class="rarity">${owned?'COLLECTED':unlockAll?'UNLOCKED':'LOCKED'}</span></div>
+   <div class="effect-strip">${c.effect||''}</div>
+  </article>`;
+ }).join('');
+}
 function renderLockedCards(){
- const el=$("lockedCards");if(!el)return;
- if(EVENT_SETTINGS.activePeriod===2){el.innerHTML='<div class="empty">PERIOD 2 OPEN! · การ์ดที่ยังไม่ได้รับจะสุ่มรวมกับ SR เมื่อเช็กอินสำเร็จ</div>';return}
- const period2Cards=CARD_SET.filter(c=>c.rank==="SR");
- el.innerHTML=period2Cards.map(c=>`<article class="game-card missing project-x"><div class="art-stage"><div class="card-fallback"><span class="rank-label">RANK SR</span><span class="character-mark">✧</span><strong class="placeholder-name">${c.name}</strong><span class="skin-label">PERIOD 02</span></div></div><div class="card-meta"><b>${c.name}</b><span class="rarity">LOCKED</span></div></article>`).join("");
+ const idsPromise=currentAccount?ownedCardIds(currentAccount):Promise.resolve([]);
+ idsPromise.then(ids=>{
+   let unlockAll=false;
+   if(currentAccount){
+     return accountRecordFor(currentAccount).then(rec=>{
+       const valid=new Set(allEventDates());
+       const total=new Set((rec.stamps||[]).filter(d=>valid.has(d))).size;
+       unlockAll=kstDate()>="2026-11-08" && total>=23;
+       renderRankCards("lockedCards",["SR"],ids,unlockAll);
+       renderRankCards("ssrCards",["SSR"],ids,unlockAll);
+     });
+   }
+   renderRankCards("lockedCards",["SR"],ids,false);
+   renderRankCards("ssrCards",["SSR"],ids,false);
+ }).catch(e=>{console.error("Card collection render failed",e);renderRankCards("lockedCards",["SR"],[],false);renderRankCards("ssrCards",["SSR"],[],false);});
 }
 async function renderCards(account){
- const el=$("myCards");if(!el)return;
  const ids=account?await ownedCardIds(account):[];
- 
- let level=0;
+ let unlockAll=false;
  if(account){
   try{
    const rec=await accountRecordFor(account);
-   // Count unique valid event dates, matching the LV shown in the calendar.
-   // Duplicate stamp rows must never unlock the full collection early.
-   const validDates=new Set(eventDates());
-   level=new Set((rec.stamps||[]).filter(date=>validDates.has(date))).size;
-  }catch(e){ level=0; }
+   const validDates=new Set(allEventDates());
+   const total=new Set((rec.stamps||[]).filter(date=>validDates.has(date))).size;
+   unlockAll=kstDate()>="2026-11-08" && total>=23;
+  }catch(e){ unlockAll=false; }
  }
- // Reveal the full collection only after all 22 unique event dates are checked in.
- // Before LV.22, only card IDs recorded for this account in card_records are displayed.
- const unlockAll=level>=eventDates().length && eventDates().length===22;
- const palettes={SHOTARO:['#f7a3c5','#ffe2ef','#ffd5a7'],EUNSEOK:['#f4d75e','#fff4b8','#ffe7a8'],SUNGCHAN:['#72b7ff','#d7efff','#d8ddff'],WONBIN:['#a887f0','#eee1ff','#d7dfff'],SOHEE:['#e45b65','#ffd9dc','#ffe6cf'],ANTON:['#34c89a','#d8fff0','#d6f5e9']};
- const marks={SHOTARO:'♫',EUNSEOK:'✦',SUNGCHAN:'⬟',WONBIN:'★',SOHEE:'♡',ANTON:'⌘'};
- // Always keep the Period 1 C + R album visible. Before LV.22, only cards actually recorded for this account are revealed; unowned cards stay as hidden placeholders. At LV.22, reveal the full C + R collection.
- const visibleCards=CARD_SET.filter(c=>c.rank!=="SR" && (EVENT_SETTINGS.activePeriod===1 || EVENT_SETTINGS.activePeriod===2));
- el.innerHTML=visibleCards.map(c=>{
-  const owned=ids.includes(c.id);const visuallyUnlocked=owned||unlockAll;const [accent,bg1,bg2]=palettes[c.name]||['#a887f0','#eee1ff','#d7dfff'];
-  const skinClass=c.rank==='SR'?'project-x':c.skin==='COOL'?'cool':c.skin==='CUTE'?'cute':'character';
-  const mark=c.rank==='SR'?'✧':c.skin==='COOL'?'⚡':c.skin==='CUTE'?'♡':(marks[c.name]||'★');
-  const bgA=c.rank==='SR'?'#d6c3ff':c.skin==='COOL'?'#b9dfff':c.skin==='CUTE'?'#ffd5e9':bg1;
-  const bgB=c.rank==='SR'?'#fff0b7':c.skin==='COOL'?'#e7e2ff':c.skin==='CUTE'?'#fff0bb':bg2;
-  return `<article class="game-card ${visuallyUnlocked?'owned':'missing'} ${skinClass}" style="--card-accent:${accent};--card-bg1:${bgA};--card-bg2:${bgB}">
-   <div class="art-stage"><div class="card-fallback"><span class="rank-label">RANK ${c.rank}</span><span class="character-mark">${mark}</span><strong class="placeholder-name">${c.name}</strong><span class="skin-label">${c.skin==='CHARACTER'?'CHARACTER CARD':c.skin==='PROJECT X'?'PROJECT X':c.skin+' SKIN'}</span></div>${visuallyUnlocked?`<img src="${c.file}" alt="${c.name} ${c.rank} ${c.skin}" onerror="this.classList.add('img-failed')" loading="lazy">`:``}</div>
-   <div class="card-meta"><b>${c.name}</b><span class="rarity">${owned?'COLLECTED':unlockAll?'UNLOCKED':'LOCKED'}</span></div>
-  </article>`;
- }).join('');
+ renderRankCards("myCards",["C","R"],ids,unlockAll);
+ renderRankCards("lockedCards",["SR"],ids,unlockAll);
+ renderRankCards("ssrCards",["SSR"],ids,unlockAll);
 }
 async function fetchAllStampRows(select="account,stamp_date", extraQuery=""){
  const all=[];
@@ -1752,34 +1769,43 @@ function accountRecord(){const db=readDB();return db[currentAccount]||{stamps:[]
 function showStatus(id,msg,type="info"){const el=$(id);el.textContent=msg;el.className="status show "+type}
 function hideStatus(id){$(id).className="status"}
 function setupDates(){
- const dates=eventDates();
- $("chosenDate").innerHTML=dates.map(d=>`<option value="${d}">${eventDateLabel(d)}</option>`).join("");
- $("backdate").addEventListener("change",()=> $("dateField").classList.toggle("hidden",!$("backdate").checked));
+ const dates=allEventDates();
+ $("chosenDate").innerHTML=dates.map(d=>`<option value="${d}">${d >= EVENT_SETTINGS.periods[2].start && d <= EVENT_SETTINGS.periods[2].end ? "[PERIOD 02] " : "[PERIOD 01] "}${eventDateLabel(d)}</option>`).join("");
+ const syncBackdateField=()=> $("dateField").classList.toggle("hidden",!$("backdate").checked);
+ $("backdate").removeEventListener("change",syncBackdateField);
+ $("backdate").addEventListener("change",syncBackdateField);
+ syncBackdateField();
  const cfg=activePeriodConfig();
  const activeLabel=$("periodActiveLabel"); if(activeLabel)activeLabel.textContent=`${cfg.title} · ${eventDateLabel(cfg.start)}–${eventDateLabel(cfg.end)}`;
 }
 async function render(){
  let rec={stamps:[]};if(currentAccount){try{rec=await accountRecordFor(currentAccount)}catch(e){showStatus("accountStatus","เชื่อมต่อฐานข้อมูลไม่สำเร็จ กรุณาตรวจการตั้งค่า Supabase","err")}}
- const earned=new Set(rec.stamps||[]),level=earned.size,cfg=activePeriodConfig();
- $("count").textContent=`LV. ${level} / ${eventDates().length}`;$("levelChip").textContent=`LV. ${level}`;
+ const earned=new Set(rec.stamps||[]),cfg=activePeriodConfig();
+ const validAllDates=new Set(allEventDates());
+ const level=new Set([...earned].filter(d=>validAllDates.has(d))).size;
+ $("count").textContent=`LV. ${level} / 23`;$("levelChip").textContent=`LV. ${level}`;
  const headers=["SUN","MON","TUE","WED","THU","FRI","SAT"];
- 
- const startMs=Date.parse(cfg.start+"T00:00:00Z"),endMs=Date.parse(cfg.end+"T00:00:00Z");
- const firstDate=new Date(startMs),firstWeekStart=startMs-firstDate.getUTCDay()*86400000;
- const weekCount=Math.min(2,Math.ceil(((endMs-firstWeekStart)/86400000+1)/7));
- const monthName = (iso) => new Date(iso + "T00:00:00Z").toLocaleString("en-US", { month: "long", timeZone: "UTC" });
- const startMonth=monthName(cfg.start),endMonth=monthName(cfg.end);
- const monthTitle=startMonth===endMonth?startMonth:`${startMonth} / ${endMonth}`;
- let calendarHTML=`<div class="cal-month-title">${monthTitle}</div>`+headers.map(d=>`<div class="cal-head">${d}</div>`).join("");
- for(let i=0;i<weekCount*7;i++){
-   const t=firstWeekStart+i*86400000,date=new Date(t),iso=date.toISOString().slice(0,10),day=date.getUTCDate(),valid=isActivePeriodDate(iso),got=valid&&earned.has(iso);
-   calendarHTML+=valid?`<div class="cal-day ${got?"earned":""}"><span class="day-num">${day}</span><span class="day-status">${got?"✓ CHECKED":"LOCKED"}</span></div>`:`<div class="cal-day empty-day"><span class="day-num"></span><span class="day-status"></span></div>`;
+ const monthName = (iso) => new Date(iso + "T00:00:00Z").toLocaleString("en-US", { month: "long", year:"numeric", timeZone: "UTC" });
+ // Show both periods so earlier check-ins remain visible after switching to Period 2.
+ let calendarHTML="";
+ for(const periodNo of [1,2]){
+   const period=EVENT_SETTINGS.periods[periodNo];
+   const startMs=Date.parse(period.start+"T00:00:00Z"),endMs=Date.parse(period.end+"T00:00:00Z");
+   const firstDate=new Date(startMs),firstWeekStart=startMs-firstDate.getUTCDay()*86400000;
+   const weekCount=Math.ceil(((endMs-firstWeekStart)/86400000+1)/7);
+   calendarHTML+=`<div class="cal-month-title">PERIOD ${String(periodNo).padStart(2,"0")} · ${monthName(period.start)}${periodNo===EVENT_SETTINGS.activePeriod?" · ACTIVE":""}</div>`;
+   calendarHTML+=headers.map(d=>`<div class="cal-head">${d}</div>`).join("");
+   for(let i=0;i<weekCount*7;i++){
+     const t=firstWeekStart+i*86400000,date=new Date(t),iso=date.toISOString().slice(0,10),day=date.getUTCDate();
+     const valid=iso>=period.start&&iso<=period.end,got=valid&&earned.has(iso);
+     calendarHTML+=valid?`<div class="cal-day ${got?"earned":""}"><span class="day-num">${day}</span><span class="day-status">${got?"✓ CHECKED":iso<kstDate()?"MISSED":"LOCKED"}</span></div>`:`<div class="cal-day empty-day"><span class="day-num"></span><span class="day-status"></span></div>`;
+   }
  }
  $("stampGrid").innerHTML=calendarHTML;
  const heading=document.querySelector('#myCards')?.previousElementSibling;
- if(heading)heading.innerHTML=`<span class="collection-title">CARD COLLECTION</span><span class="collection-period">· PERIOD ${String(EVENT_SETTINGS.activePeriod).padStart(2,"0")} · ${EVENT_SETTINGS.activePeriod===2?'C + R + SR':'C + R'}</span>`;
+ if(heading)heading.innerHTML=`<span class="collection-title">CARD COLLECTION</span><span class="collection-period">· PERIOD ${String(EVENT_SETTINGS.activePeriod).padStart(2,"0")} · ${EVENT_SETTINGS.activePeriod===2?'ALL CARDS':'C + R'}</span>`;
  const p2heading=$("lockedCards")?.previousElementSibling;
- if(p2heading)p2heading.innerHTML=`<span class="collection-title">CARD COLLECTION</span><span class="collection-period">· PERIOD 02 · ${EVENT_SETTINGS.activePeriod===2?'ACTIVE · C + R + SR':'SR CARDS · LOCKED'}</span>`;
+ if(p2heading)p2heading.innerHTML=`<span class="collection-title">CARD COLLECTION</span><span class="collection-period">· PERIOD 02 · ALL CARDS</span>`;
  await renderCards(currentAccount);renderLockedCards();
 }
 
@@ -1829,11 +1855,16 @@ $("stampBtn").addEventListener("click",async()=>{
     const parsed=kstDayFromText(ocrText);
     if(!parsed){showStatus("uploadStatus","อ่านวันที่/เวลาใต้ใบรับรองไม่สำเร็จ กรุณาใช้ภาพชัด ๆ ที่เห็นรูปแบบวันที่ เช่น 2026.10.16 22:01","err");return}
     const targetDate=isoDate(parsed.year,parsed.month,parsed.day);
-    if(!isActivePeriodDate(targetDate)){
+    const backdate=$("backdate").checked;
+    const validEventDates=new Set(allEventDates());
+    if(backdate){
+      if(!validEventDates.has(targetDate)){
+        showStatus("uploadStatus",`วันที่บนใบรับรอง ${eventDateLabel(targetDate)} ไม่อยู่ในช่วงกิจกรรมทั้งสอง Period`,"err");return;
+      }
+    } else if(!isActivePeriodDate(targetDate)){
       const cfg=activePeriodConfig();
       showStatus("uploadStatus",`วันที่ตามเวลาเกาหลีคือ ${eventDateLabel(targetDate)} อยู่นอกช่วง Period ${EVENT_SETTINGS.activePeriod} (${eventDateLabel(cfg.start)}–${eventDateLabel(cfg.end)})`,"err");return;
     }
-    const backdate=$("backdate").checked;
     const chosen=backdate?$("chosenDate").value:targetDate;
     if(!backdate){
       const today=kstDate();
@@ -2042,7 +2073,7 @@ async function downloadCertificate() {
     ctx.fillStyle="#fff1a8";ctx.beginPath();ctx.roundRect(250,180,700,58,18);ctx.fill();ctx.strokeStyle="#164e9a";ctx.lineWidth=4;ctx.stroke();
     ctx.fillStyle="#164e9a";ctx.font="900 26px system-ui";ctx.fillText(dateRange,600,218);
     const accountName="@"+currentAccount;let fs=34;ctx.font=`900 ${fs}px system-ui`;while(ctx.measureText(accountName).width>640&&fs>20){fs-=2;ctx.font=`900 ${fs}px system-ui`};ctx.fillStyle="#164e9a";ctx.fillText(accountName,600,274);
-    ctx.fillStyle="#333";ctx.font="bold 20px system-ui";ctx.fillText(`LV. ${earned.size}/${DAYS.length} · ${cardRows.length} CARDS COLLECTED`,600,310);
+    ctx.fillStyle="#333";ctx.font="bold 20px system-ui";ctx.fillText(`LV. ${new Set((rec.stamps||[]).filter(d=>allEventDates().includes(d))).size}/23 · ${cardRows.length} CARDS COLLECTED`,600,310);
     const startX=(1200-(cols*tileW+(cols-1)*gapX))/2, startY=330;
     allDates.forEach((slot,i)=>{
       const col=i%cols,row=Math.floor(i/cols),x=startX+col*(tileW+gapX),y=startY+row*(tileH+gapY);
