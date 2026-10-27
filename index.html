@@ -1326,6 +1326,21 @@ footer,
   max-width: 100%;
   overflow-wrap: anywhere;
 }
+/* Desktop: keep the date badge compact; mobile sizing remains unchanged */
+@media (min-width: 601px) {
+  .event-datetime {
+    display: inline-block !important;
+    width: fit-content !important;
+    max-width: min(850px, calc(100% - 32px)) !important;
+    box-sizing: border-box !important;
+    font-size: 10px !important;
+    padding: 10px 14px !important;
+    margin: 10px 6px 8px !important;
+    line-height: 1.7 !important;
+    overflow-wrap: anywhere;
+  }
+}
+
 @media (max-width: 600px) {
   .event-datetime {
     font-size: clamp(7px, 2.1vw, 10px) !important;
