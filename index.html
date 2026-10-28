@@ -1885,7 +1885,7 @@ $("stampBtn").addEventListener("click",async()=>{
     showStatus("uploadStatus","กำลังตรวจสอบภาพ…","info");
     const photoResult = await checkTargetPhotoFast(img);
     const confirmMessage = photoResult === true
-      ? "ภาพมีลักษณะตรงกับใบ Voting Certificate\n\nคุณยืนยันว่าได้โหวต RIIZE ในหมวด FAN’S CHOICE MALE เรียบร้อยแล้วใช่ไหม?\n\nกด OK เพื่อดำเนินการต่อ หรือ Cancel เพื่อหยุด"
+      ? "ตรวจสอบใบ Voting Certificate เรียบร้อย\n\nคุณยืนยันว่าได้โหวต RIIZE ในหมวด FAN’S CHOICE MALE เรียบร้อยแล้วใช่ไหม?\n\nกด OK เพื่อดำเนินการต่อ หรือ Cancel เพื่อหยุด"
       : "ระบบตรวจภาพได้ไม่ชัดเจน\n\nคุณยืนยันว่าได้โหวต RIIZE ในหมวด FAN’S CHOICE MALE เรียบร้อยแล้วใช่ไหม?\n\nกด OK เพื่อดำเนินการต่อ หรือ Cancel เพื่อหยุด";
     const confirmPhoto = window.confirm(confirmMessage);
     if(!confirmPhoto){
@@ -1899,8 +1899,21 @@ $("stampBtn").addEventListener("click",async()=>{
     } else {
       showStatus("uploadStatus","โหลดไม่สำเร็จ กรุณาลองใหม่","err");return;
     }
-    const parsed=kstDayFromText(ocrText);
-    if(!parsed){showStatus("uploadStatus","อ่านวันที่/เวลาใต้ใบรับรองไม่สำเร็จ กรุณาใช้ภาพชัด ๆ ที่เห็นรูปแบบวันที่ เช่น 2026.10.16 22:01","err");return}
+    let parsed=kstDayFromText(ocrText);
+    if(!parsed){
+      const manualDate = window.prompt(
+        "ระบบอ่านข้อความวันที่บน Certificate ไม่ชัดเจน\n\nกรุณาตรวจวันที่บนภาพ แล้วกรอกวันที่ที่แสดงใน Certificate รูปแบบ YYYY-MM-DD\nตัวอย่าง: 2026-10-28\n\nระบบจะยังตรวจช่วงวันที่กิจกรรมและป้องกันการรับการ์ดซ้ำเหมือนเดิม"
+      );
+      if(!manualDate){showStatus("uploadStatus","ยกเลิกแล้ว กรุณาลองอัปโหลดภาพใหม่ หรือยืนยันวันที่อีกครั้ง","err");return;}
+      const dm=manualDate.trim().match(/^(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+      if(!dm){showStatus("uploadStatus","รูปแบบวันที่ไม่ถูกต้อง กรุณากรอกเป็น YYYY-MM-DD เช่น 2026-10-28","err");return;}
+      const yy=Number(dm[1]), mm=Number(dm[2]), dd=Number(dm[3]);
+      const checkDate=new Date(Date.UTC(yy,mm-1,dd));
+      if(checkDate.getUTCFullYear()!==yy||checkDate.getUTCMonth()!==mm-1||checkDate.getUTCDate()!==dd){showStatus("uploadStatus","วันที่ที่กรอกไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง","err");return;}
+      const confirmManual=window.confirm(`ระบบอ่านวันที่จากภาพไม่ได้\n\nคุณยืนยันว่าบน Voting Certificate แสดงวันที่ ${String(dd).padStart(2,"0")}/${String(mm).padStart(2,"0")}/${yy} และคุณโหวต RIIZE ในหมวด FAN’S CHOICE MALE แล้วใช่ไหม?\n\nกด OK เพื่อยืนยันวันที่ หรือ Cancel เพื่อหยุด`);
+      if(!confirmManual){showStatus("uploadStatus","ยกเลิกการยืนยันวันที่แล้ว","err");return;}
+      parsed={year:yy,month:mm,day:dd};
+    }
     const targetDate=isoDate(parsed.year,parsed.month,parsed.day);
     if(!allEventDates().includes(targetDate)){
       const cfg=activePeriodConfig();
