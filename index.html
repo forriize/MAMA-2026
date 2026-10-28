@@ -1805,29 +1805,14 @@ function kstDate(date=new Date()){
   return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).format(date);
 }
 function kstDayFromText(s){
- 
-  const text=String(s||"")
-    .replace(/[Oo]/g,"0")
-    .replace(/[Il|]/g,"1")
-    .replace(/[，,]/g,".")
-    .replace(/[年月]/g,".")
-    .replace(/日/g," ")
-    .replace(/\s+/g," ");
-  const patterns=[
-    /(20\d{2})\s*[.\-/]\s*(\d{1,2})\s*[.\-/]\s*(\d{1,2})\s+(\d{1,2})\s*[:.]\s*(\d{2})/,
-    /(20\d{2})\s+(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})\s*[:.]\s*(\d{2})/,
-    /(20\d{2})\s*[.\-/]\s*(\d{1,2})\s*[.\-/]\s*(\d{1,2})/
-  ];
-  for(const reDate of patterns){
-    const m=text.match(reDate);
-    if(!m) continue;
-    const y=+m[1], mo=+m[2], d=+m[3], h=m[4]===undefined?0:+m[4], mi=m[5]===undefined?0:+m[5];
-    const check=new Date(Date.UTC(y,mo-1,d,h,mi));
-    if(check.getUTCFullYear()!==y||check.getUTCMonth()!==mo-1||check.getUTCDate()!==d||h>23||mi>59) continue;
-    
-    return {date:`${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`,year:y,month:mo,day:d,hour:h,minute:mi};
-  }
-  return null;
+  // KST
+  const m=s.match(/(20\d{2})[.\-/]\s*(\d{1,2})[.\-/]\s*(\d{1,2})\s+(\d{1,2})[:.](\d{2})/);
+  if(!m) return null;
+  let [_,y,mo,d,h,mi]=m;
+  y=+y;mo=+mo;d=+d;h=+h;mi=+mi;
+  // Convert to KST
+  const converted = new Date(Date.UTC(y,mo-1,d,h,mi) + 2*60*60*1000);
+  return {date:converted.toISOString().slice(0,10),year:converted.getUTCFullYear(),month:converted.getUTCMonth()+1,day:converted.getUTCDate(),hour:converted.getUTCHours(),minute:converted.getUTCMinutes()};
 }
 function dateForDay(day){ const cfg=activePeriodConfig(); const start=dateParts(cfg.start); return isoDate(start.year,start.month,day); }
 function readDB(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||"{}")}catch(e){return {}}}
@@ -1898,10 +1883,12 @@ $("stampBtn").addEventListener("click",async()=>{
   try{
     const img=await loadImage(file);
     showStatus("uploadStatus","กำลังตรวจสอบภาพ…","info");
-    const photoResult = await checkTargetPhotoFast(img);
+    let photoResult = "uncertain";
+    try { photoResult = await checkTargetPhotoFast(img); }
+    catch (photoErr) { console.warn("Photo matching unavailable; continue with user confirmation", photoErr); }
     const confirmMessage = photoResult === true
-      ? "ตรวจสอบใบ Voting Certificate เรียบร้อย\n\nคุณยืนยันว่าได้โหวต RIIZE ในหมวด FAN’S CHOICE MALE เรียบร้อยแล้วใช่ไหม?\n\nกด OK เพื่อดำเนินการต่อ หรือ Cancel เพื่อหยุด"
-      : "ระบบตรวจภาพได้ไม่ชัดเจน\n\nคุณยืนยันว่าได้โหวต RIIZE ในหมวด FAN’S CHOICE MALE เรียบร้อยแล้วใช่ไหม?\n\nกด OK เพื่อดำเนินการต่อ หรือ Cancel เพื่อหยุด";
+      ? "ตรวจพบภาพที่ตรงกับ Certificate\n\nยืนยันว่าเป็น Voting Certificate หลังโหวต RIIZE ในหมวด FAN’S CHOICE MALE แล้วใช่ไหม?\n\nกด OK เพื่ออ่านวันที่ หรือ Cancel เพื่อหยุด"
+      : "ระบบเทียบรูปอัตโนมัติไม่ได้ (รองรับภาพแคปหน้าจอแบบใหม่ด้วย)\n\nโปรดตรวจว่าภาพเป็น Voting Certificate จริง และยืนยันว่าได้โหวต RIIZE ในหมวด FAN’S CHOICE MALE แล้ว\n\nกด OK เพื่ออ่านวันที่ หรือ Cancel เพื่อหยุด";
     const confirmPhoto = window.confirm(confirmMessage);
     if(!confirmPhoto){
       showStatus("uploadStatus","ยกเลิกแล้ว คุณสามารถเลือกภาพ Certificate แล้วลองใหม่ได้","err");
@@ -1910,9 +1897,10 @@ $("stampBtn").addEventListener("click",async()=>{
     showStatus("uploadStatus","ตรวจสอบแล้ว กำลังอ่านข้อความวันที่บนใบรับรอง…","info");
     let ocrText="";
     if(window.Tesseract){
-      ocrText = await readCertificateDateText(img);
+      try { ocrText = await readCertificateDateText(img); }
+      catch (ocrErr) { console.warn("OCR failed; use manual date confirmation", ocrErr); }
     } else {
-      showStatus("uploadStatus","โหลดไม่สำเร็จ กรุณาลองใหม่","err");return;
+      console.warn("Tesseract is unavailable; use manual date confirmation");
     }
     let parsed=kstDayFromText(ocrText);
     if(!parsed){
@@ -1963,42 +1951,34 @@ $("stampBtn").addEventListener("click",async()=>{
     $("proof").value="";
   }catch(err){
     console.error(err);
-    showStatus("uploadStatus",err.message==="โหลดระบบตรวจภาพไม่สำเร็จ กรุณาลองใหม่"
-      ? err.message
-      : "ตรวจสอบรูปไม่สำเร็จ กรุณาลองอีกครั้ง","err");
+    showStatus("uploadStatus",`เกิดข้อผิดพลาด: ${err && err.message ? err.message : "ตรวจสอบรูปไม่สำเร็จ กรุณาลองอีกครั้ง"}`,"err");
   }finally{btn.disabled=false;btn.textContent="ตรวจสอบและรับการ์ด";}
 });
 function loadImage(file){return new Promise((resolve,reject)=>{const url=URL.createObjectURL(file);const img=new Image();img.onload=()=>{URL.revokeObjectURL(url);resolve(img)};img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error("image load failed"))};img.src=url})}
 
 async function readCertificateDateText(img){
   const regions = [
-    [0, 0, 1, 1],
-    [0.06, 0.22, 0.88, 0.62],
-    [0.08, 0.58, 0.84, 0.24],
-    [0.10, 0.64, 0.80, 0.18],
-    [0.08, 0.18, 0.84, 0.68],
-    [0.15, 0.66, 0.75, 0.16],
-    [0.10, 0.20, 0.80, 0.65],
-    [0.20, 0.30, 0.70, 0.50]
+    [0, 0, 1, 1],                
+    [0.10, 0.20, 0.80, 0.65],    
+    [0.20, 0.30, 0.70, 0.50],    
+    [0.35, 0.40, 0.60, 0.40]     
   ];
   const texts=[];
   for(const [rx,ry,rw,rh] of regions){
     const canvas=document.createElement("canvas");
-    const sx=Math.max(0,Math.round(img.naturalWidth*rx));
-    const sy=Math.max(0,Math.round(img.naturalHeight*ry));
-    const sw=Math.max(1,Math.min(img.naturalWidth-sx,Math.round(img.naturalWidth*rw)));
-    const sh=Math.max(1,Math.min(img.naturalHeight-sy,Math.round(img.naturalHeight*rh)));
-    const scale=Math.min(4,Math.max(2,1800/Math.max(sw,sh)));
+    const sx=Math.round(img.naturalWidth*rx), sy=Math.round(img.naturalHeight*ry);
+    const sw=Math.max(1,Math.round(img.naturalWidth*rw)), sh=Math.max(1,Math.round(img.naturalHeight*rh));
+   
+    const scale=(rx===0&&ry===0&&rw===1&&rh===1)?1:Math.min(3,Math.max(1.5,1400/Math.max(sw,sh)));
     canvas.width=Math.round(sw*scale); canvas.height=Math.round(sh*scale);
     const ctx=canvas.getContext("2d");
     ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality="high";
-    ctx.filter="contrast(1.25) grayscale(1)";
     ctx.drawImage(img,sx,sy,sw,sh,0,0,canvas.width,canvas.height);
     try{
       const result=await Tesseract.recognize(canvas,"eng",{logger:()=>{}});
       const text=result.data.text||""; texts.push(text);
       if(kstDayFromText(text)) return text;
-    }catch(e){ console.warn("Certificate OCR crop failed",e); }
+    }catch(e){  }
   }
   return texts.join("\n");
 }
