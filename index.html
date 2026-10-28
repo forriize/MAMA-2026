@@ -1843,10 +1843,10 @@ async function render(){
    let html=`<div class="cal-month-title">${title}</div>`+headers.map(d=>`<div class="cal-head">${d}</div>`).join("");
    for(let day=1;day<=daysInMonth;day++){
      const iso=isoDate(year,month,day),valid=calendarDates.includes(iso);
-     if(!valid) continue; // no blank tiles for dates outside the event periods
+     if(!valid) continue; 
      const got=earned.has(iso),period=period1Dates.includes(iso)?1:2;
      const weekday=new Date(Date.UTC(year,month-1,day)).getUTCDay();
-     const weekRow=Math.floor((offset+day-1)/7)+3; // title row + weekday row
+     const weekRow=Math.floor((offset+day-1)/7)+3; 
      const status=got?"✓ CHECKED":(iso<=cfg.end?"LOCKED":"UPCOMING");
      html+=`<div class="cal-day period-${period} ${got?"earned":""}" style="grid-column:${weekday+1};grid-row:${weekRow}"><span class="day-num">${day}</span><span class="day-status">${status}</span></div>`;
    }
@@ -2104,23 +2104,27 @@ async function downloadCertificate(requestedPeriod=EVENT_SETTINGS.activePeriod) 
     ctx.imageSmoothingEnabled=true;
     ctx.imageSmoothingQuality="high";
     
-    ctx.fillStyle="#dff7f4";ctx.fillRect(0,0,logicalWidth,logicalHeight);
-    ctx.fillStyle="#ef3340";ctx.beginPath();ctx.roundRect(24,24,1152,logicalHeight-48,30);ctx.fill();
-    ctx.fillStyle="#ffdf4d";ctx.beginPath();ctx.roundRect(42,42,1116,logicalHeight-84,24);ctx.fill();
+    // border for card collection
+    const palette = periodNo === 2
+      ? { page:"#eaf7ff", outer:"#62b8ff", middle:"#ffb6d9", title:"#24527a", tile:"#62b8ff", tileAlt:"#ff8fc4", dateBg:"#eaf7ff", dateBorder:"#ff8fc4", dateText:"#24527a" }
+      : { page:"#dff7f4", outer:"#ef3340", middle:"#ffdf4d", title:"#e63946", tile:"#164e9a", tileAlt:"#164e9a", dateBg:"#fff1a8", dateBorder:"#164e9a", dateText:"#164e9a" };
+    ctx.fillStyle=palette.page;ctx.fillRect(0,0,logicalWidth,logicalHeight);
+    ctx.fillStyle=palette.outer;ctx.beginPath();ctx.roundRect(24,24,1152,logicalHeight-48,30);ctx.fill();
+    ctx.fillStyle=palette.middle;ctx.beginPath();ctx.roundRect(42,42,1116,logicalHeight-84,24);ctx.fill();
     ctx.fillStyle="#fffdf4";ctx.beginPath();ctx.roundRect(58,58,1084,logicalHeight-116,20);ctx.fill();
-    ctx.textAlign="center";ctx.fillStyle="#e63946";ctx.font="900 28px system-ui";ctx.fillText("★ WE VOTE RIIZE · CARD COLLECTION ★",600,105);
-    ctx.fillStyle="#164e9a";ctx.font="900 44px system-ui";ctx.fillText("2026 MAMA FAN’S CHOICE",600,160);
+    ctx.textAlign="center";ctx.fillStyle=palette.title;ctx.font="900 28px system-ui";ctx.fillText("★ WE VOTE RIIZE · CARD COLLECTION ★",600,105);
+    ctx.fillStyle=palette.title;ctx.font="900 44px system-ui";ctx.fillText("2026 MAMA FAN’S CHOICE",600,160);
     const [sy,sm,sd]=cfg.start.split("-"); const [ey,em,ed]=cfg.end.split("-");
     const dateRange=`${sd}/${sm}/${sy} – ${ed}/${em}/${ey}`;
-    ctx.fillStyle="#fff1a8";ctx.beginPath();ctx.roundRect(250,180,700,58,18);ctx.fill();ctx.strokeStyle="#164e9a";ctx.lineWidth=4;ctx.stroke();
-    ctx.fillStyle="#164e9a";ctx.font="900 26px system-ui";ctx.fillText(dateRange,600,218);
+    ctx.fillStyle=palette.dateBg;ctx.beginPath();ctx.roundRect(250,180,700,58,18);ctx.fill();ctx.strokeStyle=palette.dateBorder;ctx.lineWidth=4;ctx.stroke();
+    ctx.fillStyle=palette.dateText;ctx.font="900 24px system-ui";ctx.fillText(`ROUND ${periodNo}  ·  ${dateRange}`,600,218);
     const accountName="@"+currentAccount;let fs=34;ctx.font=`900 ${fs}px system-ui`;while(ctx.measureText(accountName).width>640&&fs>20){fs-=2;ctx.font=`900 ${fs}px system-ui`};ctx.fillStyle="#164e9a";ctx.fillText(accountName,600,274);
     const periodStampCount=stampedDates.length;
     ctx.fillStyle="#333";ctx.font="bold 20px system-ui";ctx.fillText(`LV. ${periodStampCount}/${allPeriodDatesCount(cfg)} · ${cardRows.length} CARDS COLLECTED`,600,310);
     const startX=(1200-(cols*tileW+(cols-1)*gapX))/2, startY=330;
     allDates.forEach((slot,i)=>{
       const col=i%cols,row=Math.floor(i/cols),x=startX+col*(tileW+gapX),y=startY+row*(tileH+gapY);
-      ctx.fillStyle="#164e9a";ctx.beginPath();ctx.roundRect(x,y,tileW,tileH,13);ctx.fill();
+      ctx.fillStyle=periodNo===2?(i%2===0?palette.tile:palette.tileAlt):palette.tile;ctx.beginPath();ctx.roundRect(x,y,tileW,tileH,13);ctx.fill();
       ctx.fillStyle="#fffdf4";ctx.beginPath();ctx.roundRect(x+5,y+5,tileW-10,tileH-10,10);ctx.fill();
       const [yy,mm,dd]=slot.date.split('-');
       ctx.textAlign="left";ctx.fillStyle="#164e9a";ctx.font="900 19px system-ui";ctx.fillText(`${dd}/${mm}/${yy}`,x+14,y+31);
@@ -2149,14 +2153,14 @@ async function downloadCertificate(requestedPeriod=EVENT_SETTINGS.activePeriod) 
     const url=URL.createObjectURL(blob);
     if (isIOS && iosTab && !iosTab.closed) {
       iosTab.location.href=url;
-      showStatus("accountStatus","สร้าง Card Collection แล้วค่ะ เปิดรูปในแท็บใหม่เพื่อบันทึกหรือดาวน์โหลดไฟล์", "info");
+      showStatus("accountStatus","Card Collection เรียบร้อยแล้ว เปิดรูปในแท็บใหม่เพื่อบันทึกหรือดาวน์โหลดไฟล์", "info");
       setTimeout(()=>URL.revokeObjectURL(url), 10*60*1000);
     } else {
       if (iosTab && !iosTab.closed) iosTab.close();
       const link=document.createElement("a");
       link.href=url; link.download=fileName; link.style.display="none";
       document.body.appendChild(link); link.click(); link.remove();
-      showStatus("accountStatus","สร้างไฟล์ Card Collection แล้วค่ะ หากไม่เริ่มดาวน์โหลด ให้ตรวจการบล็อกดาวน์โหลดของเบราว์เซอร์", "info");
+      showStatus("accountStatus","Card Collection เรียบร้อยแล้ว หากไม่เริ่มดาวน์โหลด ให้ตรวจการบล็อกดาวน์โหลดของเบราว์เซอร์", "info");
       setTimeout(()=>URL.revokeObjectURL(url), 10*60*1000);
     }
   } catch(error) {
