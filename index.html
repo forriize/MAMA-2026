@@ -1602,7 +1602,22 @@ function localCardKey(account){return `we_vote_riize_cards_${account}`}
 function localCards(account){try{return JSON.parse(localStorage.getItem(localCardKey(account))||"[]")}catch{return []}}
 function saveLocalCards(account,ids){localStorage.setItem(localCardKey(account),JSON.stringify([...new Set(ids)]))}
 function localCardRecords(account){try{return JSON.parse(localStorage.getItem(`we_vote_riize_card_records_${account}`)||"[]")}catch{return []}}
-function periodLabel(){return `Period ${EVENT_SETTINGS.activePeriod}`}
+function periodForDate(day){
+ const iso=String(day||"").slice(0,10);
+ for(const [number,cfg] of Object.entries(EVENT_SETTINGS.periods)){
+  if(iso>=cfg.start && iso<=cfg.end) return Number(number);
+ }
+ return EVENT_SETTINGS.activePeriod;
+}
+function periodLabel(day){return `Period ${periodForDate(day)}`}
+function recordPeriod(r){
+ const day=String(r?.acquired_date||"").slice(0,10);
+ if(/^\d{4}-\d{2}-\d{2}$/.test(day)){
+  const found=periodForDate(day);
+  if(Object.values(EVENT_SETTINGS.periods).some(cfg=>day>=cfg.start&&day<=cfg.end)) return found;
+ }
+ return Number(String(r?.period||"").replace(/\D/g,"")) || null;
+}
 function clearLocalCardCache(account){
 
  try{
@@ -1617,7 +1632,7 @@ async function ownedCardIds(account){
  return rows.map(r=>r.card_id);
 }
 async function saveOwnedCard(account,cardId,day){
- const period=periodLabel();
+ const period=periodLabel(day);
  if(!DB_CONFIGURED){
   const ids=localCards(account);if(!ids.includes(cardId)){ids.push(cardId);saveLocalCards(account,ids)}
   const records=localCardRecords(account);
@@ -1643,10 +1658,11 @@ async function ownedCardRecords(account){
 }
 async function drawCard(account,day){
  const owned=await ownedCardIds(account);
- const available=CARD_SET.filter(c=>!owned.includes(c.id) && (EVENT_SETTINGS.activePeriod===2 || c.rank!=="SR"));
+ const rewardPeriod=periodForDate(day);
+ const available=CARD_SET.filter(c=>!owned.includes(c.id) && (rewardPeriod===2 || (c.rank!=="SR"&&c.rank!=="SSR")));
  if(!available.length)return null;
  let card;
- const tiers=(EVENT_SETTINGS.activePeriod===2
+ const tiers=(rewardPeriod===2
    ? [{rank:"C",weight:40},{rank:"R",weight:30},{rank:"SR",weight:20},{rank:"SSR",weight:10}]
    : [{rank:"C",weight:70},{rank:"R",weight:30}])
    .map(t=>({...t,cards:available.filter(c=>c.rank===t.rank)}))
@@ -2063,7 +2079,7 @@ async function downloadCertificate(requestedPeriod=EVENT_SETTINGS.activePeriod) 
     const records = await ownedCardRecords(currentAccount);
     const cardById = new Map(CARD_SET.map(c => [c.id, c]));
     const cardRows = records
-      .filter(r => Number(String(r.period || "").replace(/\D/g, "")) === periodNo)
+      .filter(r => recordPeriod(r) === periodNo)
       .map(r => ({...r, card:cardById.get(r.card_id)}))
       .filter(r => r.card && r.card.rank !== "SP")
       .sort((a,b) => String(a.created_at || "").localeCompare(String(b.created_at || "")));
